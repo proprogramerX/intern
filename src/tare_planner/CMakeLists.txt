@@ -125,6 +125,11 @@ add_executable(tare_planner_node src/tare_planner_node/tare_planner_node.cpp)
 add_dependencies(tare_planner_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} )
 target_link_libraries(tare_planner_node ${catkin_LIBRARIES} sensor_coverage_planner_ground)
 
+add_executable(node src/node/node.cpp)
+add_dependencies(node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(node ${catkin_LIBRARIES} sensor_coverage_planner_ground)
+
+
 #############
 ## Install ##
 #############

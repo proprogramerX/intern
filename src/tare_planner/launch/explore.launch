@@ -5,6 +5,20 @@
     <arg name="bag_path" default="Desktop"/>
     <arg name="bag_name_prefix" default="tare"/>
 
+    <!-- Arguments -->
+    <arg name="target_frame" default="map" />
+    <arg name="cloud_in1" default="/registered_scan_ugv1" />
+    <arg name="cloud_in2" default="/registered_scan_ugv2" />
+    <arg name="cloud_in3" default="/camera_down/depth/points" />
+    <arg name="cloud_in4" default="/pointcloud4" />
+    <arg name="cloud_out" default="registered_scan" />
+
+    <arg name="use_tls" default="false" />
+    <node name="mqtt_bridge" pkg="mqtt_bridge" type="mqtt_bridge_node.py" output="screen">
+        <rosparam command="load" file="$(find mqtt_bridge)/config/demo_params.yaml" />
+        <rosparam if="$(arg use_tls)" command="load" ns="mqtt" file="$(find mqtt_bridge)/config/tls_params.yaml" />
+    </node>
+
     <group if="$(arg rviz)">
         <node launch-prefix="nice" pkg="rviz" type="rviz" name="tare_planner_ground_rviz" args="-d $(find tare_planner)/rviz/tare_planner_ground.rviz" respawn="true"/>
     </group>
@@ -19,5 +33,70 @@
     <node pkg="tare_planner" type="tare_planner_node" name="tare_planner_node" output="screen" ns="sensor_coverage_planner">
         <rosparam command="load" file="$(find tare_planner)/config/$(arg scenario).yaml" />
     </node>
+    <node pkg="tare_planner" type="node" name="node" output="screen" ns="sensor_coverage_planner"></node>
+
+
+
+    <node pkg="ugv1node" name="publisher" type="publisher.py" output="screen">
+        ..
+    </node>
+
+    <!-- Launch PointCloud2 concatenator node -->
+    <node pkg="pointcloud_concatenate" type="pointcloud_concatenate_node" name="pc_concat" output="screen">
+        <param name="target_frame" value="$(arg target_frame)" />    
+        <param name="clouds" value="2" />
+        <param name="hz" value="10" />
+        <remap from="cloud_in1" to="$(arg cloud_in1)" />
+        <remap from="cloud_in2" to="$(arg cloud_in2)" />
+        <!-- <remap from="cloud_in3" to="$(arg cloud_in3)" /> -->
+        <!-- <remap from="cloud_in4" to="$(arg cloud_in4)" /> -->
+        <remap from="cloud_out" to="$(arg cloud_out)" />
+    </node>
+
+    <!-- Arguments -->
+
+    <arg name="terrain_ugv1" default="/terrain_map_1" />
+    <arg name="terrain_ugv2" default="/terrain_map_2" />
+    <!--arg name="cloud_in3" default="/camera_down/depth/points" -->
+    <!--arg name="cloud_in4" default="/pointcloud4" -->
+    <arg name="terrain_map" default="/terrain_map" />
+
+    <!-- Launch PointCloud2 concatenator node -->
+    <node pkg="pointcloud_concatenate" type="pointcloud_concatenate_node" name="pc_concat_terrain" output="screen">
+        <param name="target_frame" value="$(arg target_frame)" />    
+        <param name="clouds" value="3" />
+        <param name="hz" value="10" />
+        <remap from="cloud_in1" to="$(arg terrain_ugv1)" />
+        <remap from="cloud_in2" to="$(arg terrain_ugv2)" />
+        <!-- remap from="cloud_in3" to="$(arg cloud_in3)" /-->
+        <!-- <remap from="cloud_in4" to="$(arg cloud_in4)" /> -->
+        <remap from="cloud_out" to="$(arg terrain_map)" />
+    </node>
+
+    <!-- Arguments -->
+
+    <arg name="ext_ugv1" default="/terrain_map_ext_1" />
+    <arg name="ext_ugv2" default="/terrain_map_ext_2" />
+    <!--arg name="cloud_in3" default="/camera_down/depth/points" -->
+    <!--arg name="cloud_in4" default="/pointcloud4" -->
+    <arg name="ext_map" default="/terrain_map_ext" />
+
+    <!-- Launch PointCloud2 concatenator node -->
+    <node pkg="pointcloud_concatenate" type="pointcloud_concatenate_node" name="pc_concat_ext" output="screen">
+        <param name="target_frame" value="$(arg target_frame)" />    
+        <param name="clouds" value="3" />
+        <param name="hz" value="10" />
+        <remap from="cloud_in1" to="$(arg ext_ugv1)" />
+        <remap from="cloud_in2" to="$(arg ext_ugv2)" />
+        <!-- remap from="cloud_in3" to="$(arg cloud_in3)" /-->
+        <!-- <remap from="cloud_in4" to="$(arg cloud_in4)" /> -->
+        <remap from="cloud_out" to="$(arg ext_map)" />
+    </node>
+
+
+    <!-- Launch RViz display -->
+    <node name="pointcloud_concatenate_ui" pkg="rviz" type="rviz" args="-d $(find pointcloud_concatenate)/config/rviz/pointcloud_concatenate.rviz" output="screen" />
+
+
 
 </launch>

@@ -127,8 +127,12 @@ struct PlannerData
   std::unique_ptr<pointcloud_utils_ns::PCLCloud<pcl::PointXYZI>> point_cloud_manager_neighbor_cloud_;
   std::unique_ptr<pointcloud_utils_ns::PCLCloud<pcl::PointXYZI>> reordered_global_subspace_cloud_;
 
+
+  std::vector<int> explore_sub;
+
   nav_msgs::Odometry keypose_;
   geometry_msgs::Point robot_position_;
+  geometry_msgs::Point robot2_position_;
   geometry_msgs::Point last_robot_position_;
   lidar_model_ns::LiDARModel robot_viewpoint_;
   exploration_path_ns::ExplorationPath exploration_path_;
@@ -162,6 +166,7 @@ public:
   explicit SensorCoveragePlanner3D(ros::NodeHandle& nh, ros::NodeHandle& nh_p);
   bool initialize(ros::NodeHandle& nh, ros::NodeHandle& nh_p);
   void execute(const ros::TimerEvent&);
+  void pub(const ros::TimerEvent&);
   ~SensorCoveragePlanner3D() = default;
 
 private:
@@ -199,6 +204,8 @@ private:
   ros::Time global_direction_switch_time_;
 
   ros::Timer execution_timer_;
+  ros::Timer pub_timer_;
+
 
   // ROS subscribers
   ros::Subscriber exploration_start_sub_;
@@ -209,6 +216,8 @@ private:
   ros::Subscriber coverage_boundary_sub_;
   ros::Subscriber viewpoint_boundary_sub_;
   ros::Subscriber nogo_boundary_sub_;
+  ros::Subscriber ugv2_odom_sub_;
+
 
   // ROS publishers
   ros::Publisher global_path_full_publisher_;
@@ -224,8 +233,14 @@ private:
   ros::Publisher momentum_activation_count_pub_;
   // Debug
   ros::Publisher pointcloud_manager_neighbor_cells_origin_pub_;
+  //Jerome Added
+  ros::Publisher explore_subspaces;
+
+  std::vector<int> getexplore();
+  void get_sub_pos(std::vector<int> vector);
 
   // Callback functions
+  void odomcallback(const nav_msgs::Odometry::ConstPtr& state_estimation_msg);
   void ExplorationStartCallback(const std_msgs::Bool::ConstPtr& start_msg);
   void StateEstimationCallback(const nav_msgs::Odometry::ConstPtr& state_estimation_msg);
   void RegisteredScanCallback(const sensor_msgs::PointCloud2ConstPtr& registered_cloud_msg);

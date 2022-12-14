@@ -198,6 +198,7 @@ void GridWorld::UpdateNeighborCells(const geometry_msgs::Point& robot_position)
           subspace_center_geo_position.z = subspace_center_position.z();
           subspaces_->GetCell(i, j, k).SetPosition(subspace_center_geo_position);
           subspaces_->GetCell(i, j, k).SetRoadmapConnectionPoint(subspace_center_position);
+          // subspaces_pub.publish(subspace_center_geo_position)
         }
       }
     }

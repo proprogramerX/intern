@@ -192,7 +192,10 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
 
   lidar_model_ns::LiDARModel::setCloudDWZResol(pd_.planning_env_->GetPlannerCloudResolution());
 
-  execution_timer_ = nh.createTimer(ros::Duration(1.0), &SensorCoveragePlanner3D::execute, this);
+  execution_timer_ = nh.createTimer(ros::Duration(0.1), &SensorCoveragePlanner3D::execute, this);
+
+  pub_timer_ = nh.createTimer(ros::Duration(1.0), &SensorCoveragePlanner3D::pub, this);
+
 
   exploration_start_sub_ =
       nh.subscribe(pp_.sub_start_exploration_topic_, 5, &SensorCoveragePlanner3D::ExplorationStartCallback, this);
@@ -210,6 +213,9 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
   nogo_boundary_sub_ =
       nh.subscribe(pp_.sub_nogo_boundary_topic_, 1, &SensorCoveragePlanner3D::NogoBoundaryCallback, this);
 
+  ugv2_odom_sub_ =
+      nh.subscribe("/pong", 1, &SensorCoveragePlanner3D::odomcallback, this);
+
   global_path_full_publisher_ = nh.advertise<nav_msgs::Path>("global_path_full", 1);
   global_path_publisher_ = nh.advertise<nav_msgs::Path>("global_path", 1);
   old_global_path_publisher_ = nh.advertise<nav_msgs::Path>("old_global_path", 1);
@@ -226,6 +232,12 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
       nh.advertise<geometry_msgs::PointStamped>("pointcloud_manager_neighbor_cells_origin", 1);
 
   return true;
+}
+
+
+void SensorCoveragePlanner3D::odomcallback(const nav_msgs::Odometry::ConstPtr& state_estimation_msg)
+{
+  pd_.robot2_position_ = state_estimation_msg->pose.pose.position;
 }
 
 void SensorCoveragePlanner3D::ExplorationStartCallback(const std_msgs::Bool::ConstPtr& start_msg)
@@ -292,15 +304,35 @@ void SensorCoveragePlanner3D::RegisteredScanCallback(const sensor_msgs::PointClo
     pd_.keypose_.pose.pose.position = pd_.robot_position_;
     pd_.keypose_.pose.covariance[0] = keypose_count_++;
     pd_.cur_keypose_node_ind_ = pd_.keypose_graph_->AddKeyposeNode(pd_.keypose_, *(pd_.planning_env_));
+    pd_.keypose_.pose.pose.position = pd_.robot2_position_;
+    pd_.keypose_.pose.covariance[0] = keypose_count_++;
+    pd_.cur_keypose_node_ind_ = pd_.keypose_graph_->AddKeyposeNode(pd_.keypose_, *(pd_.planning_env_));
+
 
     pointcloud_downsizer_.Downsize(pd_.registered_scan_stack_->cloud_, pp_.kKeyposeCloudDwzFilterLeafSize,
                                    pp_.kKeyposeCloudDwzFilterLeafSize, pp_.kKeyposeCloudDwzFilterLeafSize);
 
     pd_.keypose_cloud_->cloud_->clear();
     pcl::copyPointCloud(*(pd_.registered_scan_stack_->cloud_), *(pd_.keypose_cloud_->cloud_));
-    // pd_.keypose_cloud_->Publish();
+    pd_.keypose_cloud_->Publish();
     pd_.registered_scan_stack_->cloud_->clear();
     keypose_cloud_update_ = true;
+  }
+}
+
+std::vector<int> SensorCoveragePlanner3D::getexplore()
+{
+  pd_.grid_world_->GetExploringCellIndices(pd_.explore_sub);
+  return pd_.explore_sub;
+}
+
+void SensorCoveragePlanner3D::get_sub_pos(std::vector<int> vector)
+{
+  geometry_msgs::Point cell_center;
+  for (auto it = vector.begin(); it != vector.end(); ++it)
+  {
+    cell_center = pd_.grid_world_->GetCellPosition(*it);
+    std::cout << cell_center;
   }
 }
 
@@ -524,6 +556,7 @@ void SensorCoveragePlanner3D::UpdateCoveredAreas(int& uncovered_point_num, int& 
 void SensorCoveragePlanner3D::UpdateVisitedPositions()
 {
   Eigen::Vector3d robot_current_position(pd_.robot_position_.x, pd_.robot_position_.y, pd_.robot_position_.z);
+  Eigen::Vector3d robot2_current_position(pd_.robot2_position_.x, pd_.robot2_position_.y, pd_.robot2_position_.z);
   bool existing = false;
   for (int i = 0; i < pd_.visited_positions_.size(); i++)
   {
@@ -537,6 +570,7 @@ void SensorCoveragePlanner3D::UpdateVisitedPositions()
   if (!existing)
   {
     pd_.visited_positions_.push_back(robot_current_position);
+    pd_.visited_positions_.push_back(robot2_current_position);
   }
 }
 
@@ -1339,4 +1373,33 @@ void SensorCoveragePlanner3D::execute(const ros::TimerEvent&)
     PublishRuntime();
   }
 }
+
+void SensorCoveragePlanner3D::pub(const ros::TimerEvent&)
+{
+  std::vector<int> myvector;
+
+  myvector = getexplore();
+  ros::Time stamp;
+
+  stamp = ros::Time::now();
+
+  std::cout << "\n Timestamp: " << stamp;
+  std::cout << "\n Start: \n";
+  int n = 0;
+
+  for (auto it = myvector.begin(); it != myvector.end(); ++it)
+  {
+    std::cout << ' ' << *it;
+    n += 1;
+  }
+  std::cout << "\n End";
+  std::cout << "\n Cell Pos: \n";
+  get_sub_pos(myvector);
+  std::cout << "\n End";
+
+
+  std::cout << "\n Total: " << n << "\n";
+
+}
+
 }  // namespace sensor_coverage_planner_3d_ns

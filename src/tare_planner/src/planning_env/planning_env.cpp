@@ -168,6 +168,14 @@ void PlanningEnv::UpdateCollisionCloud()
                                       parameters_.kCollisionCloudDwzLeafSize, parameters_.kCollisionCloudDwzLeafSize);
 }
 
+// void PlanningEnv::PublishPlanner()
+// {
+//   if (!planner_cloud_ ->cloud_->points.empty())
+//   {
+//     planner_cloud_->Publish();
+//   }
+// }
+
 void PlanningEnv::UpdateFrontiers()
 {
   if (parameters_.kUseFrontier)
@@ -183,6 +191,11 @@ void PlanningEnv::UpdateFrontiers()
       }
       vertical_frontier_extractor_.ExtractVerticalSurface<pcl::PointXYZI, pcl::PointXYZI>(
           frontier_cloud_->cloud_, filtered_frontier_cloud_->cloud_);
+    }
+
+    if (!frontier_cloud_->cloud_->points.empty())
+    {
+      frontier_cloud_->Publish();
     }
 
     // Cluster frontiers
@@ -233,6 +246,7 @@ void PlanningEnv::UpdateTerrainCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr&
   else
   {
     terrain_cloud_->cloud_ = cloud;
+    terrain_cloud_->Publish();
   }
 }
 

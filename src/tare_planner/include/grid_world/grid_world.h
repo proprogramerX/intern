@@ -211,6 +211,10 @@ private:
 class GridWorld
 {
 public:
+  std::vector<int> r(){
+    GetExploringCellIndices(myvector);
+    return myvector;
+  }
   explicit GridWorld(ros::NodeHandle& nh);
   explicit GridWorld(int row_num = 1, int col_num = 1, int level_num = 1, double cell_size = 6.0,
                      double cell_height = 6.0, int nearby_grid_num = 5);
@@ -373,6 +377,8 @@ private:
   int kCellExploringToAlmostCoveredThr;
   int kCellAlmostCoveredToExploringThr;
   int kCellUnknownToExploringThr;
+
+  std::vector<int> myvector;
 
   std::vector<Cell> cells_;
   std::unique_ptr<grid_ns::Grid<Cell>> subspaces_;
