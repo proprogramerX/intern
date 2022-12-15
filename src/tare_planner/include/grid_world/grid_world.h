@@ -308,6 +308,9 @@ public:
   void GetNeighborCellIndices(const geometry_msgs::Point& position, const Eigen::Vector3i& neighbor_range,
                               std::vector<int>& neighbor_indices);
   void GetExploringCellIndices(std::vector<int>& exploring_cell_indices);
+  void GetCoveredCellIndices(std::vector<int>& covered_cell_indices);
+  void SetCoveredByOthers(std::vector<int>& covered_cell_indices);
+  void SetNogo(const geometry_msgs::Point& robot_position);
   CellStatus GetCellStatus(int cell_ind);
   void SetCellStatus(int cell_ind, CellStatus status);
   geometry_msgs::Point GetCellPosition(int cell_ind);
@@ -386,6 +389,7 @@ private:
   bool use_keypose_graph_;
   int cur_keypose_id_;
   geometry_msgs::Point robot_position_;
+  geometry_msgs::Point robot2_position_;
   geometry_msgs::Point origin_;
   std::vector<int> neighbor_cell_indices_;
   std::vector<int> almost_covered_cell_indices_;
@@ -399,5 +403,6 @@ private:
   int cur_keypose_graph_node_ind_;
   int cur_robot_cell_ind_;
   int prev_robot_cell_ind_;
+  int prev_ugv2_cell_ind_;
 };
 }  // namespace grid_world_ns

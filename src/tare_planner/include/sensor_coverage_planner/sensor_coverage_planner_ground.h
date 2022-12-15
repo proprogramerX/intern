@@ -129,6 +129,8 @@ struct PlannerData
 
 
   std::vector<int> explore_sub;
+  std::vector<int> covered_sub;
+
 
   nav_msgs::Odometry keypose_;
   geometry_msgs::Point robot_position_;
@@ -235,9 +237,15 @@ private:
   ros::Publisher pointcloud_manager_neighbor_cells_origin_pub_;
   //Jerome Added
   ros::Publisher explore_subspaces;
+  ros::Publisher covered_subspaces;
+
 
   std::vector<int> getexplore();
+  std::vector<int> getcovered();
+  void coveredbyothers(std::vector<int> vector);
   void get_sub_pos(std::vector<int> vector);
+  void get_sub_status();
+
 
   // Callback functions
   void odomcallback(const nav_msgs::Odometry::ConstPtr& state_estimation_msg);
@@ -267,6 +275,8 @@ private:
   void PublishLocalPlanningVisualization(const exploration_path_ns::ExplorationPath& local_path);
   exploration_path_ns::ExplorationPath ConcatenateGlobalLocalPath(
       const exploration_path_ns::ExplorationPath& global_path, const exploration_path_ns::ExplorationPath& local_path);
+
+  void PublishCoveredSubspaces(std::vector<int> vector);
 
   void PublishRuntime();
   double GetRobotToHomeDistance();

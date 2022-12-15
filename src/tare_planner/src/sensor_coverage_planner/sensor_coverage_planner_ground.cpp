@@ -224,6 +224,7 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
   exploration_path_publisher_ = nh.advertise<nav_msgs::Path>("exploration_path", 1);
   waypoint_pub_ = nh.advertise<geometry_msgs::PointStamped>(pp_.pub_waypoint_topic_, 2);
   exploration_finish_pub_ = nh.advertise<std_msgs::Bool>(pp_.pub_exploration_finish_topic_, 2);
+  covered_subspaces = nh.advertise<std_msgs::Int32MultiArray>("covered_subspaces", 2);
   runtime_breakdown_pub_ = nh.advertise<std_msgs::Int32MultiArray>(pp_.pub_runtime_breakdown_topic_, 2);
   runtime_pub_ = nh.advertise<std_msgs::Float32>(pp_.pub_runtime_topic_, 2);
   momentum_activation_count_pub_ = nh.advertise<std_msgs::Int32>(pp_.pub_momentum_activation_count_topic_, 2);
@@ -238,6 +239,7 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
 void SensorCoveragePlanner3D::odomcallback(const nav_msgs::Odometry::ConstPtr& state_estimation_msg)
 {
   pd_.robot2_position_ = state_estimation_msg->pose.pose.position;
+  pd_.grid_world_->SetNogo(pd_.robot2_position_);
 }
 
 void SensorCoveragePlanner3D::ExplorationStartCallback(const std_msgs::Bool::ConstPtr& start_msg)
@@ -325,6 +327,16 @@ std::vector<int> SensorCoveragePlanner3D::getexplore()
   pd_.grid_world_->GetExploringCellIndices(pd_.explore_sub);
   return pd_.explore_sub;
 }
+std::vector<int> SensorCoveragePlanner3D::getcovered()
+{
+  pd_.grid_world_->GetCoveredCellIndices(pd_.covered_sub);
+  return pd_.covered_sub;
+}
+
+void SensorCoveragePlanner3D::coveredbyothers(std::vector<int> vector)
+{
+  pd_.grid_world_->SetCoveredByOthers(vector);
+}
 
 void SensorCoveragePlanner3D::get_sub_pos(std::vector<int> vector)
 {
@@ -335,6 +347,11 @@ void SensorCoveragePlanner3D::get_sub_pos(std::vector<int> vector)
     std::cout << cell_center;
   }
 }
+
+// void SensorCoveragePlanner3D::get_sub_status()
+// {
+  
+// }
 
 void SensorCoveragePlanner3D::TerrainMapCallback(const sensor_msgs::PointCloud2ConstPtr& terrain_map_msg)
 {
@@ -1171,6 +1188,21 @@ void SensorCoveragePlanner3D::PublishWaypoint()
   misc_utils_ns::Publish<geometry_msgs::PointStamped>(waypoint_pub_, waypoint, kWorldFrameID);
 }
 
+void SensorCoveragePlanner3D::PublishCoveredSubspaces(std::vector<int> vector)
+{
+  std_msgs::Int32MultiArray msg;
+  // set up dimensions
+  msg.layout.dim.push_back(std_msgs::MultiArrayDimension());
+  msg.layout.dim[0].size = vector.size();
+  msg.layout.dim[0].stride = 1;
+  msg.layout.dim[0].label = "CS"; // or whatever name you typically use to index vec1
+
+  // copy in the data
+  msg.data.clear();
+  msg.data.insert(msg.data.end(), vector.begin(), vector.end());
+  covered_subspaces.publish(msg);
+}
+
 void SensorCoveragePlanner3D::PublishRuntime()
 {
   local_viewpoint_sampling_runtime_ = pd_.local_coverage_planner_->GetViewPointSamplingRuntime() / 1000;
@@ -1379,6 +1411,13 @@ void SensorCoveragePlanner3D::pub(const ros::TimerEvent&)
   std::vector<int> myvector;
 
   myvector = getexplore();
+
+  std::vector<int> mycovered;
+
+  mycovered = getcovered();
+
+  PublishCoveredSubspaces(mycovered);
+
   ros::Time stamp;
 
   stamp = ros::Time::now();
@@ -1387,7 +1426,11 @@ void SensorCoveragePlanner3D::pub(const ros::TimerEvent&)
   std::cout << "\n Start: \n";
   int n = 0;
 
-  for (auto it = myvector.begin(); it != myvector.end(); ++it)
+  std::vector<int> test{};
+
+  coveredbyothers(test);
+
+  for (auto it = mycovered.begin(); it != mycovered.end(); ++it)
   {
     std::cout << ' ' << *it;
     n += 1;

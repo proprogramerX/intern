@@ -534,6 +534,44 @@ int GridWorld::GetCellStatusCount(grid_world_ns::CellStatus status)
   return count;
 }
 
+void GridWorld::GetCoveredCellIndices(std::vector<int>& covered_cell_indices)
+{
+  covered_cell_indices.clear();
+  for (int i = 0; i < subspaces_->GetCellNumber(); i++)
+  {
+    if (subspaces_->GetCell(i).GetStatus() == CellStatus::COVERED)
+    {
+      covered_cell_indices.push_back(i);
+    }
+  }
+
+}
+
+void GridWorld::SetCoveredByOthers(std::vector<int>& covered_cell_indices)
+{
+  for (int i = 0; i < subspaces_->GetCellNumber(); i++)
+  {
+    for (auto it = covered_cell_indices.begin(); it != covered_cell_indices.end(); ++it)
+      if (i == *it)
+      {
+        subspaces_->GetCell(i).SetStatus(CellStatus::COVERED);
+      }
+  }
+
+}
+
+void GridWorld::SetNogo(const geometry_msgs::Point& robot_position)
+{
+  robot2_position_ = robot_position;
+  int robot_cell_ind = GetCellInd(robot2_position_.x, robot2_position_.y, robot2_position_.z);
+  if (robot_cell_ind != prev_ugv2_cell_ind_)
+  {
+    subspaces_->GetCell(prev_ugv2_cell_ind_).SetStatus(CellStatus::COVERED);
+    subspaces_->GetCell(robot_cell_ind).SetStatus(CellStatus::NOGO);
+    robot_cell_ind = prev_ugv2_cell_ind_;
+  }
+}
+
 void GridWorld::UpdateCellStatus(const std::shared_ptr<viewpoint_manager_ns::ViewPointManager>& viewpoint_manager)
 {
   int exploring_count = 0;
