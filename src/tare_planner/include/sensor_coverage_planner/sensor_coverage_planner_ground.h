@@ -218,7 +218,11 @@ private:
   ros::Subscriber coverage_boundary_sub_;
   ros::Subscriber viewpoint_boundary_sub_;
   ros::Subscriber nogo_boundary_sub_;
+//added by Jerome
   ros::Subscriber ugv2_odom_sub_;
+  ros::Subscriber ugv2_covered_subspaces_sub_;
+  ros::Subscriber ugv2_exploring_subspaces_sub_;
+
 
 
   // ROS publishers
@@ -235,8 +239,8 @@ private:
   ros::Publisher momentum_activation_count_pub_;
   // Debug
   ros::Publisher pointcloud_manager_neighbor_cells_origin_pub_;
-  //Jerome Added
-  ros::Publisher explore_subspaces;
+  //added by Jerome
+  ros::Publisher exploring_subspaces;
   ros::Publisher covered_subspaces;
 
 
@@ -258,6 +262,12 @@ private:
   void ViewPointBoundaryCallback(const geometry_msgs::PolygonStampedConstPtr& polygon_msg);
   void NogoBoundaryCallback(const geometry_msgs::PolygonStampedConstPtr& polygon_msg);
 
+//added by Jerome
+  void CoveredSubspacesCallback(const std_msgs::Int32MultiArray& covered_subspaces_msg);
+  void ExploringSubspacesCallback(const std_msgs::Int32MultiArray& exploring_subspaces_msg);
+
+
+
   void SendInitialWaypoint();
   void UpdateKeyposeGraph();
   int UpdateViewPoints();
@@ -276,7 +286,9 @@ private:
   exploration_path_ns::ExplorationPath ConcatenateGlobalLocalPath(
       const exploration_path_ns::ExplorationPath& global_path, const exploration_path_ns::ExplorationPath& local_path);
 
+//added by Jerome
   void PublishCoveredSubspaces(std::vector<int> vector);
+  void PublishExploringSubspaces(std::vector<int> vector);
 
   void PublishRuntime();
   double GetRobotToHomeDistance();

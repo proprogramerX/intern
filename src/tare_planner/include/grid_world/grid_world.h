@@ -310,6 +310,7 @@ public:
   void GetExploringCellIndices(std::vector<int>& exploring_cell_indices);
   void GetCoveredCellIndices(std::vector<int>& covered_cell_indices);
   void SetCoveredByOthers(std::vector<int>& covered_cell_indices);
+  void SetExploringCells(std::vector<int>& exploring_cell_indices);
   void SetNogo(const geometry_msgs::Point& robot_position);
   CellStatus GetCellStatus(int cell_ind);
   void SetCellStatus(int cell_ind, CellStatus status);

@@ -534,6 +534,7 @@ int GridWorld::GetCellStatusCount(grid_world_ns::CellStatus status)
   return count;
 }
 
+//added by Jerome
 void GridWorld::GetCoveredCellIndices(std::vector<int>& covered_cell_indices)
 {
   covered_cell_indices.clear();
@@ -547,6 +548,7 @@ void GridWorld::GetCoveredCellIndices(std::vector<int>& covered_cell_indices)
 
 }
 
+//added by Jerome
 void GridWorld::SetCoveredByOthers(std::vector<int>& covered_cell_indices)
 {
   for (int i = 0; i < subspaces_->GetCellNumber(); i++)
@@ -560,6 +562,21 @@ void GridWorld::SetCoveredByOthers(std::vector<int>& covered_cell_indices)
 
 }
 
+//added by Jerome
+void GridWorld::SetExploringCells(std::vector<int>& exploring_cell_indices)
+{
+  for (int i = 0; i < subspaces_->GetCellNumber(); i++)
+  {
+    for (auto it = exploring_cell_indices.begin(); it != exploring_cell_indices.end(); ++it)
+      if (i == *it)
+      {
+        subspaces_->GetCell(i).SetStatus(CellStatus::EXPLORING);
+      }
+  }
+
+}
+
+//added by Jerome
 void GridWorld::SetNogo(const geometry_msgs::Point& robot_position)
 {
   robot2_position_ = robot_position;

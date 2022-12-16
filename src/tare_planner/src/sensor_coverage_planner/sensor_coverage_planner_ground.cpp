@@ -213,8 +213,13 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
   nogo_boundary_sub_ =
       nh.subscribe(pp_.sub_nogo_boundary_topic_, 1, &SensorCoveragePlanner3D::NogoBoundaryCallback, this);
 
+//added by Jerome
   ugv2_odom_sub_ =
       nh.subscribe("/pong", 1, &SensorCoveragePlanner3D::odomcallback, this);
+  ugv2_covered_subspaces_sub_ =
+      nh.subscribe("/covered_subspaces_2", 1, &SensorCoveragePlanner3D::CoveredSubspacesCallback, this);
+  ugv2_exploring_subspaces_sub_ =
+      nh.subscribe("/exploring_subspaces_2", 1, &SensorCoveragePlanner3D::ExploringSubspacesCallback, this);
 
   global_path_full_publisher_ = nh.advertise<nav_msgs::Path>("global_path_full", 1);
   global_path_publisher_ = nh.advertise<nav_msgs::Path>("global_path", 1);
@@ -224,7 +229,10 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
   exploration_path_publisher_ = nh.advertise<nav_msgs::Path>("exploration_path", 1);
   waypoint_pub_ = nh.advertise<geometry_msgs::PointStamped>(pp_.pub_waypoint_topic_, 2);
   exploration_finish_pub_ = nh.advertise<std_msgs::Bool>(pp_.pub_exploration_finish_topic_, 2);
+  //added by Jerome
   covered_subspaces = nh.advertise<std_msgs::Int32MultiArray>("covered_subspaces", 2);
+  exploring_subspaces = nh.advertise<std_msgs::Int32MultiArray>("ugv_exploring_subspaces", 2);
+
   runtime_breakdown_pub_ = nh.advertise<std_msgs::Int32MultiArray>(pp_.pub_runtime_breakdown_topic_, 2);
   runtime_pub_ = nh.advertise<std_msgs::Float32>(pp_.pub_runtime_topic_, 2);
   momentum_activation_count_pub_ = nh.advertise<std_msgs::Int32>(pp_.pub_momentum_activation_count_topic_, 2);
@@ -235,11 +243,11 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
   return true;
 }
 
-
+//added by Jerome
 void SensorCoveragePlanner3D::odomcallback(const nav_msgs::Odometry::ConstPtr& state_estimation_msg)
 {
   pd_.robot2_position_ = state_estimation_msg->pose.pose.position;
-  pd_.grid_world_->SetNogo(pd_.robot2_position_);
+  //pd_.grid_world_->SetNogo(pd_.robot2_position_);
 }
 
 void SensorCoveragePlanner3D::ExplorationStartCallback(const std_msgs::Bool::ConstPtr& start_msg)
@@ -306,9 +314,6 @@ void SensorCoveragePlanner3D::RegisteredScanCallback(const sensor_msgs::PointClo
     pd_.keypose_.pose.pose.position = pd_.robot_position_;
     pd_.keypose_.pose.covariance[0] = keypose_count_++;
     pd_.cur_keypose_node_ind_ = pd_.keypose_graph_->AddKeyposeNode(pd_.keypose_, *(pd_.planning_env_));
-    pd_.keypose_.pose.pose.position = pd_.robot2_position_;
-    pd_.keypose_.pose.covariance[0] = keypose_count_++;
-    pd_.cur_keypose_node_ind_ = pd_.keypose_graph_->AddKeyposeNode(pd_.keypose_, *(pd_.planning_env_));
 
 
     pointcloud_downsizer_.Downsize(pd_.registered_scan_stack_->cloud_, pp_.kKeyposeCloudDwzFilterLeafSize,
@@ -322,22 +327,28 @@ void SensorCoveragePlanner3D::RegisteredScanCallback(const sensor_msgs::PointClo
   }
 }
 
+//added by Jerome
+//Get exploring subspaces
 std::vector<int> SensorCoveragePlanner3D::getexplore()
 {
   pd_.grid_world_->GetExploringCellIndices(pd_.explore_sub);
   return pd_.explore_sub;
 }
+
+//Get covered subspaces
 std::vector<int> SensorCoveragePlanner3D::getcovered()
 {
   pd_.grid_world_->GetCoveredCellIndices(pd_.covered_sub);
   return pd_.covered_sub;
 }
 
+//Set subspaces covered by others
 void SensorCoveragePlanner3D::coveredbyothers(std::vector<int> vector)
 {
   pd_.grid_world_->SetCoveredByOthers(vector);
 }
 
+//Get subspace position
 void SensorCoveragePlanner3D::get_sub_pos(std::vector<int> vector)
 {
   geometry_msgs::Point cell_center;
@@ -348,10 +359,21 @@ void SensorCoveragePlanner3D::get_sub_pos(std::vector<int> vector)
   }
 }
 
-// void SensorCoveragePlanner3D::get_sub_status()
-// {
-  
-// }
+//Callback to set covered subspaces by other ugv to covered for this ugv
+void SensorCoveragePlanner3D::CoveredSubspacesCallback(const std_msgs::Int32MultiArray& covered_subspaces_msg)
+{
+  std::vector<int> test{};
+  test = covered_subspaces_msg.data;
+  coveredbyothers(test);
+}
+
+//Callback to set exploring subspaces by other ugv to exploring for this ugv
+void SensorCoveragePlanner3D::ExploringSubspacesCallback(const std_msgs::Int32MultiArray& exploring_subspaces_msg)
+{
+  std::vector<int> test{};
+  test = exploring_subspaces_msg.data;
+  coveredbyothers(test);
+}
 
 void SensorCoveragePlanner3D::TerrainMapCallback(const sensor_msgs::PointCloud2ConstPtr& terrain_map_msg)
 {
@@ -1188,6 +1210,7 @@ void SensorCoveragePlanner3D::PublishWaypoint()
   misc_utils_ns::Publish<geometry_msgs::PointStamped>(waypoint_pub_, waypoint, kWorldFrameID);
 }
 
+//Publish Covered Subspaces - added by Jerome
 void SensorCoveragePlanner3D::PublishCoveredSubspaces(std::vector<int> vector)
 {
   std_msgs::Int32MultiArray msg;
@@ -1201,6 +1224,22 @@ void SensorCoveragePlanner3D::PublishCoveredSubspaces(std::vector<int> vector)
   msg.data.clear();
   msg.data.insert(msg.data.end(), vector.begin(), vector.end());
   covered_subspaces.publish(msg);
+}
+
+//Publish Exploring Subspaces - added by Jerome
+void SensorCoveragePlanner3D::PublishExploringSubspaces(std::vector<int> vector)
+{
+  std_msgs::Int32MultiArray msg;
+  // set up dimensions
+  msg.layout.dim.push_back(std_msgs::MultiArrayDimension());
+  msg.layout.dim[0].size = vector.size();
+  msg.layout.dim[0].stride = 1;
+  msg.layout.dim[0].label = "CS"; // or whatever name you typically use to index vec1
+
+  // copy in the data
+  msg.data.clear();
+  msg.data.insert(msg.data.end(), vector.begin(), vector.end());
+  exploring_subspaces.publish(msg);
 }
 
 void SensorCoveragePlanner3D::PublishRuntime()
@@ -1412,6 +1451,8 @@ void SensorCoveragePlanner3D::pub(const ros::TimerEvent&)
 
   myvector = getexplore();
 
+  PublishExploringSubspaces(myvector);
+
   std::vector<int> mycovered;
 
   mycovered = getcovered();
@@ -1426,9 +1467,6 @@ void SensorCoveragePlanner3D::pub(const ros::TimerEvent&)
   std::cout << "\n Start: \n";
   int n = 0;
 
-  std::vector<int> test{};
-
-  coveredbyothers(test);
 
   for (auto it = mycovered.begin(); it != mycovered.end(); ++it)
   {
