@@ -348,6 +348,12 @@ void SensorCoveragePlanner3D::coveredbyothers(std::vector<int> vector)
   pd_.grid_world_->SetCoveredByOthers(vector);
 }
 
+//Set subspaces exploring by others
+void SensorCoveragePlanner3D::exploringbyothers(std::vector<int> vector)
+{
+  pd_.grid_world_->SetExploringCells(vector);
+}
+
 //Get subspace position
 void SensorCoveragePlanner3D::get_sub_pos(std::vector<int> vector)
 {
@@ -372,7 +378,7 @@ void SensorCoveragePlanner3D::ExploringSubspacesCallback(const std_msgs::Int32Mu
 {
   std::vector<int> test{};
   test = exploring_subspaces_msg.data;
-  coveredbyothers(test);
+  exploringbyothers(test);
 }
 
 void SensorCoveragePlanner3D::TerrainMapCallback(const sensor_msgs::PointCloud2ConstPtr& terrain_map_msg)

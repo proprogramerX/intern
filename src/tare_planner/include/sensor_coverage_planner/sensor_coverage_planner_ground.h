@@ -243,7 +243,7 @@ private:
   ros::Publisher exploring_subspaces;
   ros::Publisher covered_subspaces;
 
-
+  void exploringbyothers(std::vector<int> vector);
   std::vector<int> getexplore();
   std::vector<int> getcovered();
   void coveredbyothers(std::vector<int> vector);
@@ -252,7 +252,9 @@ private:
 
 
   // Callback functions
+  //added by Jerome
   void odomcallback(const nav_msgs::Odometry::ConstPtr& state_estimation_msg);
+
   void ExplorationStartCallback(const std_msgs::Bool::ConstPtr& start_msg);
   void StateEstimationCallback(const nav_msgs::Odometry::ConstPtr& state_estimation_msg);
   void RegisteredScanCallback(const sensor_msgs::PointCloud2ConstPtr& registered_cloud_msg);
