@@ -570,7 +570,10 @@ void GridWorld::SetExploringCells(std::vector<int>& exploring_cell_indices)
     for (auto it = exploring_cell_indices.begin(); it != exploring_cell_indices.end(); ++it)
       if (i == *it)
       {
-        subspaces_->GetCell(i).SetStatus(CellStatus::EXPLORING);
+        if (subspaces_->GetCell(i).GetStatus() != CellStatus::COVERED)
+        {
+          subspaces_->GetCell(i).SetStatus(CellStatus::EXPLORING);
+        }
       }
   }
 
