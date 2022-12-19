@@ -217,9 +217,9 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
   ugv2_odom_sub_ =
       nh.subscribe("/pong", 1, &SensorCoveragePlanner3D::odomcallback, this);
   ugv2_covered_subspaces_sub_ =
-      nh.subscribe("/covered_subspaces_2", 1, &SensorCoveragePlanner3D::CoveredSubspacesCallback, this);
+      nh.subscribe("/covered_subspaces_1", 1, &SensorCoveragePlanner3D::CoveredSubspacesCallback, this);
   ugv2_exploring_subspaces_sub_ =
-      nh.subscribe("/exploring_subspaces_2", 1, &SensorCoveragePlanner3D::ExploringSubspacesCallback, this);
+      nh.subscribe("/exploring_subspaces_1", 1, &SensorCoveragePlanner3D::ExploringSubspacesCallback, this);
 
   global_path_full_publisher_ = nh.advertise<nav_msgs::Path>("global_path_full", 1);
   global_path_publisher_ = nh.advertise<nav_msgs::Path>("global_path", 1);
@@ -1474,18 +1474,18 @@ void SensorCoveragePlanner3D::pub(const ros::TimerEvent&)
   int n = 0;
 
 
-  for (auto it = mycovered.begin(); it != mycovered.end(); ++it)
-  {
-    std::cout << ' ' << *it;
-    n += 1;
-  }
+  // for (auto it = mycovered.begin(); it != mycovered.end(); ++it)
+  // {
+  //   std::cout << ' ' << *it;
+  //   n += 1;
+  // }
   std::cout << "\n End";
-  std::cout << "\n Cell Pos: \n";
-  get_sub_pos(myvector);
-  std::cout << "\n End";
+  // std::cout << "\n Cell Pos: \n";
+  // get_sub_pos(myvector);
+  // std::cout << "\n End";
 
 
-  std::cout << "\n Total: " << n << "\n";
+  // std::cout << "\n Total: " << n << "\n";
 
 }
 

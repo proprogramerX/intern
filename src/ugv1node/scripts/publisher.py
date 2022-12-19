@@ -40,44 +40,44 @@ class publish:
         z = np.float32(data.pose.pose.position.z)
 
         t1 = Point32()
-        t1.x = x - 1
-        t1.y = y + 1
-        t1.z = z + 1
+        t1.x = x - 2
+        t1.y = y + 2
+        t1.z = z + 2
 
         t2 = Point32()
-        t2.x = x + 1
-        t2.y = y + 1
-        t2.z = z + 1
+        t2.x = x + 2
+        t2.y = y + 2
+        t2.z = z + 2
 
         t3 = Point32()
-        t3.x = x - 1
-        t3.y = y - 1
-        t3.z = z + 1
+        t3.x = x - 2
+        t3.y = y - 2
+        t3.z = z + 2
 
         t4= Point32()
-        t4.x = x + 1   
-        t4.y = y - 1
-        t4.z = z + 1
+        t4.x = x + 2   
+        t4.y = y - 2
+        t4.z = z + 2
 
         b1 = Point32()
-        b1.x = x + 1
-        b1.y = y + 1
-        b1.z = z - 1
+        b1.x = x + 2
+        b1.y = y + 2
+        b1.z = z - 2
 
         b2 = Point32()
-        b2.x = x + 1
-        b2.y = y - 1
-        b2.z = z - 1
+        b2.x = x + 2
+        b2.y = y - 2
+        b2.z = z - 2
 
         b3 = Point32()
-        b3.x = x - 1
-        b3.y = y + 1
-        b3.z = z - 1
+        b3.x = x - 2
+        b3.y = y + 2
+        b3.z = z - 2
 
         b4= Point32()
-        b4.x = x - 1   
-        b4.y = y - 1
-        b4.z = z - 1
+        b4.x = x - 2   
+        b4.y = y - 2
+        b4.z = z - 2
 
 
 
