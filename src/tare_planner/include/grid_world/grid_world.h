@@ -312,6 +312,7 @@ public:
   void SetCoveredByOthers(std::vector<int>& covered_cell_indices);
   void SetExploringCells(std::vector<int>& exploring_cell_indices);
   void SetNogo(const geometry_msgs::Point& robot_position);
+  void GetNogoCellIndices(std::vector<int>& nogo_cell_indices);
   CellStatus GetCellStatus(int cell_ind);
   void SetCellStatus(int cell_ind, CellStatus status);
   geometry_msgs::Point GetCellPosition(int cell_ind);

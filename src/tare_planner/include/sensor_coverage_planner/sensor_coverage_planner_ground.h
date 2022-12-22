@@ -242,6 +242,8 @@ private:
   //added by Jerome
   ros::Publisher exploring_subspaces;
   ros::Publisher covered_subspaces;
+  ros::Publisher stop_finish_pub_;
+
 
   void exploringbyothers(std::vector<int> vector);
   std::vector<int> getexplore();
@@ -291,6 +293,8 @@ private:
 //added by Jerome
   void PublishCoveredSubspaces(std::vector<int> vector);
   void PublishExploringSubspaces(std::vector<int> vector);
+  void PublishStoppedState();
+
 
   void PublishRuntime();
   double GetRobotToHomeDistance();

@@ -4,10 +4,13 @@ import rospy
 import numpy as np
 
 
-from std_msgs.msg import Header, String 
+from std_msgs.msg import Header, String, Float32, Bool
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, Polygon, Point32, PolygonStamped
 
+import subprocess
+import signal
+import os
 
 x = 0
 y = 0
@@ -15,8 +18,9 @@ z = 10
 
 
 class publish:
+     
     def __init__(self):
-        self._pub = rospy.Publisher('sensor_coverage_planner/nogo_boundary', PolygonStamped, queue_size=10)
+        self._pub = rospy.Publisher('sensor_coverage_planner/navigation_boundary', PolygonStamped, queue_size=10)
 
         self._nogo_boundary = [PolygonStamped(),PolygonStamped(),PolygonStamped()]
 
@@ -25,6 +29,27 @@ class publish:
         current_time = rospy.Time.now()
         for i in range(2):
             self._nogo_boundary[i].header.stamp = current_time
+        
+        
+        time_duration = 0
+        start_time_duration = 0
+        first_iteration = 'True'
+
+        explored_volume = 0;
+        traveling_distance = 0;
+        run_time = 0;
+        max_explored_volume = 0
+        max_traveling_diatance = 0
+        max_run_time = 0
+
+        time_list1 = np.array([])
+        time_list2 = np.array([])
+        time_list3 = np.array([])
+        run_time_list = np.array([])
+        explored_volume_list = np.array([])
+        traveling_distance_list = np.array([])
+        self.explorationstate = False
+        self.stop = False
 
 
         self.talker()
@@ -96,6 +121,50 @@ class publish:
         
         rate = rospy.Rate(10) # 10hz
         rospy.Subscriber("pong", Odometry, self.callback)
+        rospy.Subscriber("/runtime", Float32, self.runTimeCallback)
+        rospy.Subscriber("/explored_volume", Float32, self.exploredVolumeCallback)
+        rospy.Subscriber("/traveling_distance", Float32, self.travelingDistanceCallback)
+        rospy.Subscriber("/sensor_coverage_planner/exploration_finish", Bool, self.explorationstateCallback)
+        rospy.Subscriber("/sensor_coverage_planner/stop", Bool, self.stopCallback)
+
+
+
+    def runTimeCallback(self,msg):
+        global run_time
+        run_time = msg.data
+
+    def exploredVolumeCallback(self,msg):
+        global explored_volume
+        explored_volume = msg.data
+
+    def travelingDistanceCallback(self,msg):
+        global traveling_distance
+        traveling_distance = msg.data
+
+    def explorationstateCallback(self,msg):
+        self.explorationstate = msg.data
+
+
+    def get_pids_by_tty(self,tty):
+        pids = []
+        output = subprocess.run(['ps', '-eo', 'tty,pid'], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        for line in output.split('\n'):
+            if tty in line:
+                pids.append(int(line.split()[1]))
+        return pids
+
+    def stopCallback(self,msg):
+        self.stop = msg.data
+        if (self.stop):
+            print(traveling_distance)
+            print(explored_volume)
+            print(run_time)
+            tty = subprocess.run(['tty'], stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
+            pids = self.get_pids_by_tty(tty)
+            for pid in pids:
+                os.kill(pid, signal.SIGINT)
+
+        
 
 
 
@@ -105,7 +174,23 @@ class publish:
 
 if __name__ == '__main__':
     try:
-        publish()
+        rosnode = publish()
+        #screen_session = os.getenv('STY')
+
+        # Get the process id
+        #pid = p.pid
+        # if (rosnode.explorationstate):
+        #     print(traveling_distance)
+        #     print(explored_volume)
+        #     print(run_time)
+        #     tty = subprocess.run(['tty'], stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
+        #     pids = get_pids_by_tty(tty)
+        #     for pid in pids:
+        #         os.kill(pid, signal.SIGINT)
+
+        #     if not p.poll():
+        #         print("Process correctly halted")
+
     except rospy.ROSInterruptException:
         pass
     rospy.spin()

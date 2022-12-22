@@ -535,18 +535,29 @@ int GridWorld::GetCellStatusCount(grid_world_ns::CellStatus status)
 }
 
 //added by Jerome
-// || (subspaces_->GetCell(i).GetStatus() == CellStatus::COVERED_BY_OTHERS)
 void GridWorld::GetCoveredCellIndices(std::vector<int>& covered_cell_indices)
 {
   covered_cell_indices.clear();
   for (int i = 0; i < subspaces_->GetCellNumber(); i++)
   {
-    if ((subspaces_->GetCell(i).GetStatus() == CellStatus::COVERED))
+    if (subspaces_->GetCell(i).GetStatus() == CellStatus::COVERED)
     {
       covered_cell_indices.push_back(i);
     }
   }
 
+}
+
+void GridWorld::GetNogoCellIndices(std::vector<int>& nogo_cell_indices)
+{
+  nogo_cell_indices.clear();
+  for (int i = 0; i < subspaces_->GetCellNumber(); i++)
+  {
+    if (subspaces_->GetCell(i).GetStatus() == CellStatus::NOGO)
+    {
+      nogo_cell_indices.push_back(i);
+    }
+  }
 }
 
 //added by Jerome
@@ -571,7 +582,7 @@ void GridWorld::SetExploringCells(std::vector<int>& exploring_cell_indices)
     for (auto it = exploring_cell_indices.begin(); it != exploring_cell_indices.end(); ++it)
       if (i == *it)
       {
-        if ((subspaces_->GetCell(i).GetStatus() != CellStatus::COVERED) && (subspaces_->GetCell(i).GetStatus() != CellStatus::COVERED_BY_OTHERS))
+        if ((subspaces_->GetCell(i).GetStatus() != CellStatus::COVERED) && (subspaces_->GetCell(i).GetStatus() != CellStatus::COVERED_BY_OTHERS) && (subspaces_->GetCell(i).GetStatus() != CellStatus::NOGO))
         {
           subspaces_->GetCell(i).SetStatus(CellStatus::EXPLORING);
         }
@@ -585,9 +596,13 @@ void GridWorld::SetNogo(const geometry_msgs::Point& robot_position)
 {
   robot2_position_ = robot_position;
   int robot_cell_ind = GetCellInd(robot2_position_.x, robot2_position_.y, robot2_position_.z);
+  std::cout << robot_cell_ind << "\n";
   if (robot_cell_ind != prev_ugv2_cell_ind_)
   {
-    subspaces_->GetCell(prev_ugv2_cell_ind_).SetStatus(CellStatus::COVERED);
+    if ((subspaces_->GetCell(prev_ugv2_cell_ind_).GetStatus() != CellStatus::COVERED) && (subspaces_->GetCell(prev_ugv2_cell_ind_).GetStatus() != CellStatus::COVERED_BY_OTHERS))
+    {
+      subspaces_->GetCell(prev_ugv2_cell_ind_).SetStatus(CellStatus::EXPLORING);
+    }
     subspaces_->GetCell(robot_cell_ind).SetStatus(CellStatus::NOGO);
     robot_cell_ind = prev_ugv2_cell_ind_;
   }

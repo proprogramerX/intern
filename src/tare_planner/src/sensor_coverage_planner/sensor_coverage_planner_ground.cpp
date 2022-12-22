@@ -217,9 +217,9 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
   ugv2_odom_sub_ =
       nh.subscribe("/pong", 1, &SensorCoveragePlanner3D::odomcallback, this);
   ugv2_covered_subspaces_sub_ =
-      nh.subscribe("/covered_subspaces_1", 1, &SensorCoveragePlanner3D::CoveredSubspacesCallback, this);
+      nh.subscribe("/covered_subspaces_2", 1, &SensorCoveragePlanner3D::CoveredSubspacesCallback, this);
   ugv2_exploring_subspaces_sub_ =
-      nh.subscribe("/exploring_subspaces_1", 1, &SensorCoveragePlanner3D::ExploringSubspacesCallback, this);
+      nh.subscribe("/exploring_subspaces_2", 1, &SensorCoveragePlanner3D::ExploringSubspacesCallback, this);
 
   global_path_full_publisher_ = nh.advertise<nav_msgs::Path>("global_path_full", 1);
   global_path_publisher_ = nh.advertise<nav_msgs::Path>("global_path", 1);
@@ -232,6 +232,7 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
   //added by Jerome
   covered_subspaces = nh.advertise<std_msgs::Int32MultiArray>("covered_subspaces", 2);
   exploring_subspaces = nh.advertise<std_msgs::Int32MultiArray>("ugv_exploring_subspaces", 2);
+  stop_finish_pub_ = nh.advertise<std_msgs::Bool>("stop", 2);
 
   runtime_breakdown_pub_ = nh.advertise<std_msgs::Int32MultiArray>(pp_.pub_runtime_breakdown_topic_, 2);
   runtime_pub_ = nh.advertise<std_msgs::Float32>(pp_.pub_runtime_topic_, 2);
@@ -247,7 +248,7 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
 void SensorCoveragePlanner3D::odomcallback(const nav_msgs::Odometry::ConstPtr& state_estimation_msg)
 {
   pd_.robot2_position_ = state_estimation_msg->pose.pose.position;
-  //pd_.grid_world_->SetNogo(pd_.robot2_position_);
+  pd_.grid_world_->SetNogo(pd_.robot2_position_);
 }
 
 void SensorCoveragePlanner3D::ExplorationStartCallback(const std_msgs::Bool::ConstPtr& start_msg)
@@ -1291,6 +1292,13 @@ void SensorCoveragePlanner3D::PublishExplorationState()
   exploration_finish_pub_.publish(exploration_finished_msg);
 }
 
+void SensorCoveragePlanner3D::PublishStoppedState()
+{
+  std_msgs::Bool stop_finished_msg;
+  stop_finished_msg.data = stopped_;
+  stop_finish_pub_.publish(stop_finished_msg);
+}
+
 void SensorCoveragePlanner3D::PrintExplorationStatus(std::string status, bool clear_last_line)
 {
   if (clear_last_line)
@@ -1420,6 +1428,7 @@ void SensorCoveragePlanner3D::execute(const ros::TimerEvent&)
       if (!exploration_finished_)
       {
         PrintExplorationStatus("Exploration completed, returning home", false);
+        std::cout << ((ros::Time::now() - start_time_).toSec());
       }
       exploration_finished_ = true;
     }
@@ -1453,6 +1462,8 @@ void SensorCoveragePlanner3D::execute(const ros::TimerEvent&)
 
 void SensorCoveragePlanner3D::pub(const ros::TimerEvent&)
 {
+  PublishStoppedState();
+  
   std::vector<int> myvector;
 
   myvector = getexplore();
@@ -1465,21 +1476,27 @@ void SensorCoveragePlanner3D::pub(const ros::TimerEvent&)
 
   PublishCoveredSubspaces(mycovered);
 
+  std::vector<int> mynogo;
+  pd_.grid_world_->GetNogoCellIndices(mynogo);
+
   ros::Time stamp;
 
   stamp = ros::Time::now();
 
-  std::cout << "\n Timestamp: " << stamp;
-  std::cout << "\n Start: \n";
-  int n = 0;
+  if (!exploration_finished_)
+  {
+    std::cout << "\n Timestamp: " << stamp;
+    std::cout << "\n Start: \n";
+    int n = 0;
 
 
-  // for (auto it = mycovered.begin(); it != mycovered.end(); ++it)
-  // {
-  //   std::cout << ' ' << *it;
-  //   n += 1;
-  // }
-  std::cout << "\n End";
+    for (auto it = mynogo.begin(); it != mynogo.end(); ++it)
+    {
+      std::cout << ' ' << *it;
+      n += 1;
+    }
+    std::cout << "\n End";
+  }
   // std::cout << "\n Cell Pos: \n";
   // get_sub_pos(myvector);
   // std::cout << "\n End";
