@@ -131,6 +131,10 @@ struct PlannerData
   std::vector<int> explore_sub;
   std::vector<int> covered_sub;
 
+  int redflag;
+  int priority = 1;
+  int ugv2priority = 2;
+
 
   nav_msgs::Odometry keypose_;
   geometry_msgs::Point robot_position_;
@@ -243,6 +247,9 @@ private:
   ros::Publisher exploring_subspaces;
   ros::Publisher covered_subspaces;
   ros::Publisher stop_finish_pub_;
+  ros::Publisher exploration_time_pub_;
+  ros::Publisher redflag_pub_;
+  ros::Publisher priority_pub_;
 
 
   void exploringbyothers(std::vector<int> vector);
@@ -251,6 +258,9 @@ private:
   void coveredbyothers(std::vector<int> vector);
   void get_sub_pos(std::vector<int> vector);
   void get_sub_status();
+  bool isInsideCircularBoundary(double centerX, double centerY, double centerZ, double radius, double pointX, double pointY, double pointZ);
+  void VehicleCollisionAvoidance(const exploration_path_ns::ExplorationPath& global_path, 
+                                                        const exploration_path_ns::ExplorationPath& local_path);
 
 
   // Callback functions
@@ -294,6 +304,11 @@ private:
   void PublishCoveredSubspaces(std::vector<int> vector);
   void PublishExploringSubspaces(std::vector<int> vector);
   void PublishStoppedState();
+  void PublishExplorationTime();
+  void Publishredflag();
+  void Publishpriority();
+
+
 
 
   void PublishRuntime();

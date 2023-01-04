@@ -2,6 +2,9 @@
 # license removed for brevity
 import rospy
 import numpy as np
+import datetime
+import logging
+
 
 
 from std_msgs.msg import Header, String, Float32, Bool
@@ -119,15 +122,20 @@ class publish:
 
     def talker(self):
         
-        rate = rospy.Rate(10) # 10hz
+        rate = rospy.Rate(1) # 10hz
         rospy.Subscriber("pong", Odometry, self.callback)
         rospy.Subscriber("/runtime", Float32, self.runTimeCallback)
         rospy.Subscriber("/explored_volume", Float32, self.exploredVolumeCallback)
         rospy.Subscriber("/traveling_distance", Float32, self.travelingDistanceCallback)
         rospy.Subscriber("/sensor_coverage_planner/exploration_finish", Bool, self.explorationstateCallback)
         rospy.Subscriber("/sensor_coverage_planner/stop", Bool, self.stopCallback)
+        rospy.Subscriber("/sensor_coverage_planner/exploration_time", Float32, self.ExplorationTimeCallback)
 
 
+
+    def ExplorationTimeCallback(self,msg):
+        global exploration_time
+        exploration_time = msg.data
 
     def runTimeCallback(self,msg):
         global run_time
@@ -156,9 +164,26 @@ class publish:
     def stopCallback(self,msg):
         self.stop = msg.data
         if (self.stop):
+            now = datetime.datetime.now()
+            time_string = now.strftime('%Y-%m-%d %H:%M:%S')
+            filename = 'file_{}.txt'.format(time_string)
+            with open(filename, 'w') as f:
+                f.write(str(time_string)+ '\n')
+                # Write some integers to the file
+                f.write(str(exploration_time)+ '\n')
+                f.write(str(traveling_distance)+ '\n')
+                f.write(str(explored_volume)+ '\n')
+                f.write(str(run_time)+ '\n')
+            print(exploration_time)
             print(traveling_distance)
             print(explored_volume)
             print(run_time)
+            # Set the log file name and the log level
+            logging.basicConfig(filename='/home/intern/tare_planner/log/example.log', level=logging.INFO)
+
+            # Log some data
+            logging.info('Returned Home')
+            subprocess.run(['screen', '-X', 'quit'])
             tty = subprocess.run(['tty'], stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
             pids = self.get_pids_by_tty(tty)
             for pid in pids:

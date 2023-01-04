@@ -233,6 +233,11 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
   covered_subspaces = nh.advertise<std_msgs::Int32MultiArray>("covered_subspaces", 2);
   exploring_subspaces = nh.advertise<std_msgs::Int32MultiArray>("ugv_exploring_subspaces", 2);
   stop_finish_pub_ = nh.advertise<std_msgs::Bool>("stop", 2);
+  exploration_time_pub_ = nh.advertise<std_msgs::Float32>("exploration_time", 2);
+  redflag_pub_ = nh.advertise<std_msgs::Float32>("redflag", 2);
+  priority_pub_ = nh.advertise<std_msgs::Float32>("priority", 2);
+
+
 
   runtime_breakdown_pub_ = nh.advertise<std_msgs::Int32MultiArray>(pp_.pub_runtime_breakdown_topic_, 2);
   runtime_pub_ = nh.advertise<std_msgs::Float32>(pp_.pub_runtime_topic_, 2);
@@ -248,7 +253,7 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
 void SensorCoveragePlanner3D::odomcallback(const nav_msgs::Odometry::ConstPtr& state_estimation_msg)
 {
   pd_.robot2_position_ = state_estimation_msg->pose.pose.position;
-  pd_.grid_world_->SetNogo(pd_.robot2_position_);
+  //pd_.grid_world_->SetNogo(pd_.robot2_position_);
 }
 
 void SensorCoveragePlanner3D::ExplorationStartCallback(const std_msgs::Bool::ConstPtr& start_msg)
@@ -369,18 +374,71 @@ void SensorCoveragePlanner3D::get_sub_pos(std::vector<int> vector)
 //Callback to set covered subspaces by other ugv to covered for this ugv
 void SensorCoveragePlanner3D::CoveredSubspacesCallback(const std_msgs::Int32MultiArray& covered_subspaces_msg)
 {
-  std::vector<int> test{};
-  test = covered_subspaces_msg.data;
-  coveredbyothers(test);
+  if (((ros::Time::now() - start_time_).toSec()) > 20)
+  {
+    std::vector<int> test{};
+    test = covered_subspaces_msg.data;
+    coveredbyothers(test);
+  }
 }
 
 //Callback to set exploring subspaces by other ugv to exploring for this ugv
 void SensorCoveragePlanner3D::ExploringSubspacesCallback(const std_msgs::Int32MultiArray& exploring_subspaces_msg)
 {
-  std::vector<int> test{};
-  test = exploring_subspaces_msg.data;
-  exploringbyothers(test);
+  if (((ros::Time::now() - start_time_).toSec()) > 20)
+  {
+    std::vector<int> test{};
+    test = exploring_subspaces_msg.data;
+    exploringbyothers(test);
+  }
 }
+
+bool SensorCoveragePlanner3D::isInsideCircularBoundary(double centerX, double centerY, double centerZ, double radius, double pointX, double pointY, double pointZ)
+{
+    double distance = sqrt((pointX - centerX) * (pointX - centerX) + (pointY - centerY) * (pointY - centerY) + (pointZ - centerZ) * (pointZ - centerZ));
+    return distance <= radius;
+}
+
+void SensorCoveragePlanner3D::VehicleCollisionAvoidance(const exploration_path_ns::ExplorationPath& global_path, 
+                                                        const exploration_path_ns::ExplorationPath& local_path)
+{
+  geometry_msgs::Point robot2pos;
+  robot2pos.x = pd_.robot2_position_.x;
+  robot2pos.y = pd_.robot2_position_.y;
+  robot2pos.z = pd_.robot2_position_.z;
+
+  pd_.redflag = 0;
+
+  // for (int i = 0; i < global_path.nodes_.size(); i++)
+  // {
+  //   if (isInsideCircularBoundary(robot2pos.x,robot2pos.y,robot2pos.z,10.00,global_path.nodes_[i].position_.x(),global_path.nodes_[i].position_.y(),global_path.nodes_[i].position_.z()))
+  //   {
+  //     pd_.redflag = 1;
+  //   }
+  // }
+  for (int i = 0; i < local_path.nodes_.size(); i++)
+  {
+    if (isInsideCircularBoundary(robot2pos.x,robot2pos.y,robot2pos.z,5.00,local_path.nodes_[i].position_.x(),local_path.nodes_[i].position_.y(),local_path.nodes_[i].position_.z()))
+    {
+      pd_.redflag = 1;
+    }
+  }
+}
+
+void SensorCoveragePlanner3D::Publishredflag()
+{
+  std_msgs::Int32 redflag_msg;
+  redflag_msg.data = pd_.redflag;
+  redflag_pub_.publish(redflag_msg);
+}
+
+void SensorCoveragePlanner3D::Publishpriority()
+{
+  std_msgs::Int32 priority_msg;
+  priority_msg.data = pd_.priority;
+  priority_pub_.publish(priority_msg);
+}
+
 
 void SensorCoveragePlanner3D::TerrainMapCallback(const sensor_msgs::PointCloud2ConstPtr& terrain_map_msg)
 {
@@ -1214,6 +1272,12 @@ void SensorCoveragePlanner3D::PublishWaypoint()
     waypoint.point.y = dy + pd_.robot_position_.y;
     waypoint.point.z = pd_.lookahead_point_.z();
   }
+  if (pd_.redflag != 0 && pd_.priority >= pd_.ugv2priority)
+  {
+    waypoint.point.x = pd_.robot_position_.x;
+    waypoint.point.y = pd_.robot_position_.y;
+    waypoint.point.z = pd_.robot_position_.z;
+  }
   misc_utils_ns::Publish<geometry_msgs::PointStamped>(waypoint_pub_, waypoint, kWorldFrameID);
 }
 
@@ -1290,6 +1354,13 @@ void SensorCoveragePlanner3D::PublishExplorationState()
   std_msgs::Bool exploration_finished_msg;
   exploration_finished_msg.data = exploration_finished_;
   exploration_finish_pub_.publish(exploration_finished_msg);
+}
+
+void SensorCoveragePlanner3D::PublishExplorationTime()
+{
+  std_msgs::Float32 exploration_time_msg;
+  exploration_time_msg.data = ((ros::Time::now() - start_time_).toSec());
+  exploration_time_pub_.publish(exploration_time_msg);
 }
 
 void SensorCoveragePlanner3D::PublishStoppedState()
@@ -1415,7 +1486,7 @@ void SensorCoveragePlanner3D::execute(const ros::TimerEvent&)
     exploration_path_ns::ExplorationPath global_path;
     GlobalPlanning(global_cell_tsp_order, global_path);
 
-    // Local TSP
+    // Local TSP 
     exploration_path_ns::ExplorationPath local_path;
     LocalPlanning(uncovered_point_num, uncovered_frontier_point_num, global_path, local_path);
 
@@ -1456,54 +1527,62 @@ void SensorCoveragePlanner3D::execute(const ros::TimerEvent&)
 
     PublishLocalPlanningVisualization(local_path);
     PublishGlobalPlanningVisualization(global_path, local_path);
+    VehicleCollisionAvoidance(global_path, local_path);
+    //Publishredflag();
     PublishRuntime();
   }
 }
 
 void SensorCoveragePlanner3D::pub(const ros::TimerEvent&)
 {
-  PublishStoppedState();
-  
-  std::vector<int> myvector;
-
-  myvector = getexplore();
-
-  PublishExploringSubspaces(myvector);
-
-  std::vector<int> mycovered;
-
-  mycovered = getcovered();
-
-  PublishCoveredSubspaces(mycovered);
-
-  std::vector<int> mynogo;
-  pd_.grid_world_->GetNogoCellIndices(mynogo);
-
-  ros::Time stamp;
-
-  stamp = ros::Time::now();
-
-  if (!exploration_finished_)
+  if (((ros::Time::now() - start_time_).toSec()) > 20)
   {
-    std::cout << "\n Timestamp: " << stamp;
-    std::cout << "\n Start: \n";
-    int n = 0;
+    Publishredflag();
+    Publishpriority();
+    PublishStoppedState();
+    PublishExplorationTime();
+
+    std::vector<int> myvector;
+
+    myvector = getexplore();
+
+    PublishExploringSubspaces(myvector);
+
+    std::vector<int> mycovered;
+
+    mycovered = getcovered();
+
+    PublishCoveredSubspaces(mycovered);
+
+    std::vector<int> mynogo;
+    pd_.grid_world_->GetNogoCellIndices(mynogo);
+
+    ros::Time stamp;
+
+    stamp = ros::Time::now();
+
+    // if (!exploration_finished_)
+    // {
+    //   std::cout << "\n Timestamp: " << stamp;
+    //   std::cout << "\n Start: \n";
+    //   int n = 0;
 
 
-    for (auto it = mynogo.begin(); it != mynogo.end(); ++it)
-    {
-      std::cout << ' ' << *it;
-      n += 1;
-    }
-    std::cout << "\n End";
+    //   for (auto it = mynogo.begin(); it != mynogo.end(); ++it)
+    //   {
+    //     std::cout << ' ' << *it;
+    //     n += 1;
+    //   }
+    //   std::cout << "\n End";
+    // }
+    // std::cout << "\n Cell Pos: \n";
+    // get_sub_pos(myvector);
+    // std::cout << "\n End";
+
+
+    // std::cout << "\n Total: " << n << "\n";
   }
-  // std::cout << "\n Cell Pos: \n";
-  // get_sub_pos(myvector);
-  // std::cout << "\n End";
-
-
-  // std::cout << "\n Total: " << n << "\n";
-
 }
+
 
 }  // namespace sensor_coverage_planner_3d_ns
