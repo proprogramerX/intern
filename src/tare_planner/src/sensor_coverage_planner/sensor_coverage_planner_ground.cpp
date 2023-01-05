@@ -220,6 +220,8 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
       nh.subscribe("/covered_subspaces_2", 1, &SensorCoveragePlanner3D::CoveredSubspacesCallback, this);
   ugv2_exploring_subspaces_sub_ =
       nh.subscribe("/exploring_subspaces_2", 1, &SensorCoveragePlanner3D::ExploringSubspacesCallback, this);
+  ugv2_priority_sub_ =
+      nh.subscribe("/ugv2priority", 1, &SensorCoveragePlanner3D::prioritycallback, this);
 
   global_path_full_publisher_ = nh.advertise<nav_msgs::Path>("global_path_full", 1);
   global_path_publisher_ = nh.advertise<nav_msgs::Path>("global_path", 1);
@@ -234,8 +236,9 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
   exploring_subspaces = nh.advertise<std_msgs::Int32MultiArray>("ugv_exploring_subspaces", 2);
   stop_finish_pub_ = nh.advertise<std_msgs::Bool>("stop", 2);
   exploration_time_pub_ = nh.advertise<std_msgs::Float32>("exploration_time", 2);
-  redflag_pub_ = nh.advertise<std_msgs::Float32>("redflag", 2);
-  priority_pub_ = nh.advertise<std_msgs::Float32>("priority", 2);
+  redflag_pub_ = nh.advertise<std_msgs::Int32>("redflag", 2);
+  priority_pub_ = nh.advertise<std_msgs::Int32>("priority", 2);
+  point_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("point_cloud", 1);
 
 
 
@@ -321,6 +324,12 @@ void SensorCoveragePlanner3D::RegisteredScanCallback(const sensor_msgs::PointClo
     pd_.keypose_.pose.covariance[0] = keypose_count_++;
     pd_.cur_keypose_node_ind_ = pd_.keypose_graph_->AddKeyposeNode(pd_.keypose_, *(pd_.planning_env_));
 
+    if (pd_.ugv2priority > 0)
+    {
+      pd_.keypose_.pose.pose.position = pd_.robot2_position_;
+      pd_.keypose_.pose.covariance[0] = keypose_count_++;
+      pd_.cur_keypose_node_ind_ = pd_.keypose_graph_->AddKeyposeNode(pd_.keypose_, *(pd_.planning_env_));
+    }
 
     pointcloud_downsizer_.Downsize(pd_.registered_scan_stack_->cloud_, pp_.kKeyposeCloudDwzFilterLeafSize,
                                    pp_.kKeyposeCloudDwzFilterLeafSize, pp_.kKeyposeCloudDwzFilterLeafSize);
@@ -393,12 +402,20 @@ void SensorCoveragePlanner3D::ExploringSubspacesCallback(const std_msgs::Int32Mu
   }
 }
 
+//Callback to set priority of other ugv
+void SensorCoveragePlanner3D::prioritycallback(const std_msgs::Int32& priority_msg)
+{
+  pd_.ugv2priority = priority_msg.data;
+}
+
+//Function to check if a point is within the radius of a sphere boundary 
 bool SensorCoveragePlanner3D::isInsideCircularBoundary(double centerX, double centerY, double centerZ, double radius, double pointX, double pointY, double pointZ)
 {
     double distance = sqrt((pointX - centerX) * (pointX - centerX) + (pointY - centerY) * (pointY - centerY) + (pointZ - centerZ) * (pointZ - centerZ));
     return distance <= radius;
 }
 
+//Function to check if the path intersects with the boundary
 void SensorCoveragePlanner3D::VehicleCollisionAvoidance(const exploration_path_ns::ExplorationPath& global_path, 
                                                         const exploration_path_ns::ExplorationPath& local_path)
 {
@@ -422,6 +439,19 @@ void SensorCoveragePlanner3D::VehicleCollisionAvoidance(const exploration_path_n
     {
       pd_.redflag = 1;
     }
+  }
+}
+
+void SensorCoveragePlanner3D::store_previous_point(const geometry_msgs::Point& current_point) 
+{
+  // Add the current point to the vector.
+  pd_.previous_points.push_back(current_point);
+
+  // If the queue is larger than the maximum size, remove the oldest point from the queue.
+  const int MAX_SIZE = 10;  // Adjust this value to control the number of points stored in the queue.
+  if (pd_.previous_points.size() > MAX_SIZE) 
+  {
+    pd_.previous_points.erase(pd_.previous_points.begin());
   }
 }
 
@@ -660,7 +690,7 @@ void SensorCoveragePlanner3D::UpdateCoveredAreas(int& uncovered_point_num, int& 
 void SensorCoveragePlanner3D::UpdateVisitedPositions()
 {
   Eigen::Vector3d robot_current_position(pd_.robot_position_.x, pd_.robot_position_.y, pd_.robot_position_.z);
-  Eigen::Vector3d robot2_current_position(pd_.robot2_position_.x, pd_.robot2_position_.y, pd_.robot2_position_.z);
+
   bool existing = false;
   for (int i = 0; i < pd_.visited_positions_.size(); i++)
   {
@@ -674,7 +704,6 @@ void SensorCoveragePlanner3D::UpdateVisitedPositions()
   if (!existing)
   {
     pd_.visited_positions_.push_back(robot_current_position);
-    pd_.visited_positions_.push_back(robot2_current_position);
   }
 }
 
@@ -1250,7 +1279,7 @@ bool SensorCoveragePlanner3D::GetLookAheadPoint(const exploration_path_ns::Explo
 void SensorCoveragePlanner3D::PublishWaypoint()
 {
   geometry_msgs::PointStamped waypoint;
-  if (exploration_finished_ && near_home_ && pp_.kRushHome)
+  if (exploration_finished_ && near_home_ && pp_.kRushHome && (((ros::Time::now() - start_time_).toSec()) > 60))
   {
     waypoint.point.x = pd_.initial_position_.x();
     waypoint.point.y = pd_.initial_position_.y();
@@ -1272,11 +1301,26 @@ void SensorCoveragePlanner3D::PublishWaypoint()
     waypoint.point.y = dy + pd_.robot_position_.y;
     waypoint.point.z = pd_.lookahead_point_.z();
   }
-  if (pd_.redflag != 0 && pd_.priority >= pd_.ugv2priority)
+  if ((pd_.redflag != 0) && (pd_.priority >= pd_.ugv2priority) && (pd_.ugv2priority > 0) && (!exploration_finished_))
   {
-    waypoint.point.x = pd_.robot_position_.x;
-    waypoint.point.y = pd_.robot_position_.y;
-    waypoint.point.z = pd_.robot_position_.z;
+    if (pd_.previous_points.size() < 2) 
+    {
+      ROS_ERROR("Not enough waypoints stored to retrace steps");
+      return;
+      waypoint.point.x = pd_.robot_position_.x;
+      waypoint.point.y = pd_.robot_position_.y;
+      waypoint.point.z = pd_.robot_position_.z;
+    }
+    else 
+    {
+      for (int i = pd_.previous_points.size() - 1; i >= 0; i--) {
+        waypoint.point.x = pd_.previous_points[i].x;
+        waypoint.point.y = pd_.previous_points[i].y;
+        waypoint.point.z = pd_.previous_points[i].z;
+        misc_utils_ns::Publish<geometry_msgs::PointStamped>(waypoint_pub_, waypoint, kWorldFrameID);
+        pd_.previous_points.pop_back();
+      }
+    }
   }
   misc_utils_ns::Publish<geometry_msgs::PointStamped>(waypoint_pub_, waypoint, kWorldFrameID);
 }
@@ -1535,10 +1579,27 @@ void SensorCoveragePlanner3D::execute(const ros::TimerEvent&)
 
 void SensorCoveragePlanner3D::pub(const ros::TimerEvent&)
 {
-  if (((ros::Time::now() - start_time_).toSec()) > 20)
+  // sensor_msgs::PointCloud2 cloud_msg;
+  // pcl::toROSMsg(*pd_.keypose_cloud_, cloud_msg);
+  // cloud_msg.header.frame_id = "map";
+  // point_cloud_pub.publish(cloud_msg);
+  Publishpriority();
+  store_previous_point(pd_.robot_position_);
+  Eigen::Vector3d robot2_current_position(pd_.robot2_position_.x, pd_.robot2_position_.y, pd_.robot2_position_.z);
+  if (pd_.ugv2priority > 0)
+  {
+    for (int i = 0; i < pd_.visited_positions_.size(); i++)
+    {
+      if ((robot2_current_position - pd_.visited_positions_[i]).norm() < 1 && (robot2_current_position != pd_.visited_positions_[i]))
+      {
+        pd_.visited_positions_.push_back(robot2_current_position);
+      }
+    }
+  }
+  pd_.viewpoint_manager_->UpdateViewPointVisited(pd_.visited_positions_);
+  if (((ros::Time::now() - start_time_).toSec()) > 100)
   {
     Publishredflag();
-    Publishpriority();
     PublishStoppedState();
     PublishExplorationTime();
 

@@ -5,10 +5,12 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global1
+        - /Local1
         - /Local1/LocalPlanningHorizon1
         - /Local1/ViewpointCandidates1
+        - /Local1/Vehicle1
         - /Odometry1/Shape1
-        - /PointCloud26
+        - /Odometry2/Shape1
       Splitter Ratio: 0.4306722581386566
     Tree Height: 548
   - Class: rviz/Selection
@@ -89,7 +91,7 @@ Visualization Manager:
           Marker Topic: /sensor_coverage_planner/tare_visualizer/exploring_subspaces
           Name: ExploringSubspaces
           Namespaces:
-            {}
+            "": true
           Queue Size: 100
           Value: true
         - Alpha: 1
@@ -409,7 +411,7 @@ Visualization Manager:
           Enabled: true
           Length: 4
           Name: Vehicle
-          Radius: 0.4000000059604645
+          Radius: 1
           Reference Frame: sensor
           Show Trail: false
           Value: true
@@ -716,6 +718,41 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: true
+      Keep: 100
+      Name: Odometry
+      Position Tolerance: 0.10000000149011612
+      Queue Size: 10
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 255; 25; 255
+        Head Length: 0.30000001192092896
+        Head Radius: 0.10000000149011612
+        Shaft Length: 1
+        Shaft Radius: 1
+        Value: Arrow
+      Topic: /pong
+      Unreliable: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -744,7 +781,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 101.4796142578125
+      Distance: 345.96136474609375
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -752,8 +789,8 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 27.88326644897461
-        Y: -3.915050506591797
+        X: 28.45537567138672
+        Y: -15.014877319335938
         Z: 0.7042633891105652
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
@@ -762,7 +799,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5597963333129883
       Target Frame: map
-      Yaw: 4.7159624099731445
+      Yaw: 3.140953540802002
     Saved: ~
 Window Geometry:
   Displays:

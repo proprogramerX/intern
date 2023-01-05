@@ -19,6 +19,12 @@
         <rosparam if="$(arg use_tls)" command="load" ns="mqtt" file="$(find mqtt_bridge)/config/tls_params.yaml" />
     </node>
 
+<!-- Uncomment node below to visualise explored area point clouds and share registered_scan -->
+    <!-- <node name="pc_mqtt_bridge" pkg="mqtt_bridge" type="mqtt_bridge_node.py" output="screen">
+        <rosparam command="load" file="$(find mqtt_bridge)/config/pc_params.yaml" />
+        <rosparam if="$(arg use_tls)" command="load" ns="mqtt" file="$(find mqtt_bridge)/config/tls_params.yaml" />
+    </node> -->
+
     <group if="$(arg rviz)">
         <node launch-prefix="nice" pkg="rviz" type="rviz" name="tare_planner_ground_rviz" args="-d $(find tare_planner)/rviz/tare_planner_ground.rviz" respawn="true"/>
     </group>

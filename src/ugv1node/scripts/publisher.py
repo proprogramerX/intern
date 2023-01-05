@@ -183,11 +183,11 @@ class publish:
 
             # Log some data
             logging.info('Returned Home')
-            subprocess.run(['screen', '-X', 'quit'])
-            tty = subprocess.run(['tty'], stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
-            pids = self.get_pids_by_tty(tty)
-            for pid in pids:
-                os.kill(pid, signal.SIGINT)
+            # subprocess.run(['screen', '-X', 'quit'])
+            # tty = subprocess.run(['tty'], stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
+            # pids = self.get_pids_by_tty(tty)
+            # for pid in pids:
+            #     os.kill(pid, signal.SIGINT)
 
         
 

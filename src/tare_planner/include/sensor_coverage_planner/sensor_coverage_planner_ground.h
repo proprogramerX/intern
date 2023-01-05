@@ -12,6 +12,8 @@
 
 #include <cmath>
 #include <vector>
+#include <queue>
+#include <geometry_msgs/PoseStamped.h>
 
 #include <Eigen/Core>
 // ROS
@@ -131,9 +133,12 @@ struct PlannerData
   std::vector<int> explore_sub;
   std::vector<int> covered_sub;
 
-  int redflag;
-  int priority = 1;
-  int ugv2priority = 2;
+  // Define a queue to store the previous points of the robot.
+  std::vector<geometry_msgs::Point> previous_points;
+
+  int redflag = 0;
+  int priority = 2;
+  int ugv2priority;
 
 
   nav_msgs::Odometry keypose_;
@@ -226,6 +231,7 @@ private:
   ros::Subscriber ugv2_odom_sub_;
   ros::Subscriber ugv2_covered_subspaces_sub_;
   ros::Subscriber ugv2_exploring_subspaces_sub_;
+  ros::Subscriber ugv2_priority_sub_;
 
 
 
@@ -250,6 +256,8 @@ private:
   ros::Publisher exploration_time_pub_;
   ros::Publisher redflag_pub_;
   ros::Publisher priority_pub_;
+  ros::Publisher point_cloud_pub;
+
 
 
   void exploringbyothers(std::vector<int> vector);
@@ -279,6 +287,7 @@ private:
 //added by Jerome
   void CoveredSubspacesCallback(const std_msgs::Int32MultiArray& covered_subspaces_msg);
   void ExploringSubspacesCallback(const std_msgs::Int32MultiArray& exploring_subspaces_msg);
+  void prioritycallback(const std_msgs::Int32& priority_msg);
 
 
 
@@ -307,6 +316,8 @@ private:
   void PublishExplorationTime();
   void Publishredflag();
   void Publishpriority();
+  void store_previous_point(const geometry_msgs::Point& current_point);
+
 
 
 
