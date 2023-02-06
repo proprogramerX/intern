@@ -16,6 +16,11 @@
 #include <geometry_msgs/PoseStamped.h>
 
 #include <Eigen/Core>
+#include <Eigen/Dense>
+
+#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PoseArray.h>
+
 // ROS
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
@@ -137,8 +142,11 @@ struct PlannerData
   std::vector<geometry_msgs::Point> previous_points;
 
   int redflag = 0;
-  int priority = 2;
+  int priority = 1;
   int ugv2priority;
+
+  std::vector<Eigen::Vector3d> pub_position_ ;
+
 
 
   nav_msgs::Odometry keypose_;
@@ -256,6 +264,7 @@ private:
   ros::Publisher exploration_time_pub_;
   ros::Publisher redflag_pub_;
   ros::Publisher priority_pub_;
+  ros::Publisher keypose_pub_;
   ros::Publisher point_cloud_pub;
 
 
@@ -318,6 +327,7 @@ private:
   void Publishpriority();
   void store_previous_point(const geometry_msgs::Point& current_point);
 
+  void Publishkeypose();
 
 
 

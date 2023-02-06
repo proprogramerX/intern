@@ -1015,6 +1015,16 @@ void KeyposeGraph::GetKeyposePositions(std::vector<Eigen::Vector3d>& positions)
   }
 }
 
+void KeyposeGraph::GetNodePositions(std::vector<Eigen::Vector3d>& positions)
+{
+  positions.clear();
+  for (const auto& node : nodes_)
+  {
+    Eigen::Vector3d position(node.position_.x, node.position_.y, node.position_.z);
+    positions.push_back(position);
+  }
+}
+
 geometry_msgs::Point KeyposeGraph::GetNodePosition(int node_ind)
 {
   geometry_msgs::Point node_position;

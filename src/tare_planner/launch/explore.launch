@@ -8,7 +8,7 @@
     <!-- Arguments -->
     <arg name="target_frame" default="map" />
     <arg name="cloud_in1" default="/registered_scan_ugv1" />
-    <!--<arg name="cloud_in2" default="/registered_scan_ugv2" /> -->
+    <arg name="cloud_in2" default="/registered_scan_ugv2" />
     <!--arg name="cloud_in3" default="/camera_down/depth/points" /-->
     <!--arg name="cloud_in4" default="/pointcloud4" /-->
     <arg name="cloud_out" default="registered_scan" />
@@ -48,16 +48,16 @@
     </node>
 
     <!-- Launch PointCloud2 concatenator node -->
-    <node pkg="pointcloud_concatenate" type="pointcloud_concatenate_node" name="pc_concat" output="screen">
+    <!-- <node pkg="pointcloud_concatenate" type="pointcloud_concatenate_node" name="pc_concat" output="screen">
         <param name="target_frame" value="$(arg target_frame)" />    
         <param name="clouds" value="2" />
         <param name="hz" value="10" />
         <remap from="cloud_in1" to="$(arg cloud_in1)" />
-        <!--<remap from="cloud_in2" to="$(arg cloud_in2)" />-->
-        <!-- <remap from="cloud_in3" to="$(arg cloud_in3)" /> -->
-        <!-- <remap from="cloud_in4" to="$(arg cloud_in4)" /> -->
+        <remap from="cloud_in2" to="$(arg cloud_in2)" />
+        <remap from="cloud_in3" to="$(arg cloud_in3)" /> -->
+        <!-- <remap from="cloud_in4" to="$(arg cloud_in4)" />
         <remap from="cloud_out" to="$(arg cloud_out)" />
-    </node>
+    </node> -->
 
     <!-- Arguments -->
 
@@ -68,16 +68,16 @@
     <arg name="terrain_map" default="/total_explored_areas" />
 
     <!-- Launch PointCloud2 concatenator node -->
-    <node pkg="pointcloud_concatenate" type="pointcloud_concatenate_node" name="pc_concat_terrain" output="screen">
+    <!-- <node pkg="pointcloud_concatenate" type="pointcloud_concatenate_node" name="pc_concat_terrain" output="screen">
         <param name="target_frame" value="$(arg target_frame)" />    
         <param name="clouds" value="3" />
         <param name="hz" value="10" />
         <remap from="cloud_in1" to="$(arg terrain_ugv1)" />
         <remap from="cloud_in2" to="$(arg terrain_ugv2)" />
-        <!-- remap from="cloud_in3" to="$(arg cloud_in3)" /-->
-        <!-- <remap from="cloud_in4" to="$(arg cloud_in4)" /> -->
+        remap from="cloud_in3" to="$(arg cloud_in3)" /-->
+        <!-- <remap from="cloud_in4" to="$(arg cloud_in4)" />
         <remap from="cloud_out" to="$(arg terrain_map)" />
-    </node>
+    </node> -->
 
     <!-- Arguments -->
 
@@ -100,7 +100,7 @@
     </node>  -->
 
 
-    Launch RViz display
+    <!-- Launch RViz display -->
     <node name="pointcloud_concatenate_ui" pkg="rviz" type="rviz" args="-d $(find pointcloud_concatenate)/config/rviz/pointcloud_concatenate.rviz" output="screen" />
 
 

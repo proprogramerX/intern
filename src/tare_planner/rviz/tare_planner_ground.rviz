@@ -91,7 +91,7 @@ Visualization Manager:
           Marker Topic: /sensor_coverage_planner/tare_visualizer/exploring_subspaces
           Name: ExploringSubspaces
           Namespaces:
-            "": true
+            {}
           Queue Size: 100
           Value: true
         - Alpha: 1
@@ -781,7 +781,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 345.96136474609375
+      Distance: 334.2536315917969
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -789,17 +789,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 28.45537567138672
-        Y: -15.014877319335938
-        Z: 0.7042633891105652
+        X: 69.13981628417969
+        Y: -155.2109375
+        Z: 0.7042646408081055
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5597963333129883
+      Pitch: 1.5697963237762451
       Target Frame: map
-      Yaw: 3.140953540802002
+      Yaw: 4.714142322540283
     Saved: ~
 Window Geometry:
   Displays:

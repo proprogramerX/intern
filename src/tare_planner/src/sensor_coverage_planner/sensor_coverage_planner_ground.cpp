@@ -238,6 +238,7 @@ bool SensorCoveragePlanner3D::initialize(ros::NodeHandle& nh, ros::NodeHandle& n
   exploration_time_pub_ = nh.advertise<std_msgs::Float32>("exploration_time", 2);
   redflag_pub_ = nh.advertise<std_msgs::Int32>("redflag", 2);
   priority_pub_ = nh.advertise<std_msgs::Int32>("priority", 2);
+  keypose_pub_ = nh.advertise<geometry_msgs::PoseArray>("keypose_pc", 1);
   point_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("point_cloud", 1);
 
 
@@ -274,9 +275,12 @@ void SensorCoveragePlanner3D::StateEstimationCallback(const nav_msgs::Odometry::
   if (std::abs(pd_.initial_position_.x()) < 0.01 && std::abs(pd_.initial_position_.y()) < 0.01 &&
       std::abs(pd_.initial_position_.z()) < 0.01)
   {
-    pd_.initial_position_.x() = pd_.robot_position_.x;
-    pd_.initial_position_.y() = pd_.robot_position_.y;
-    pd_.initial_position_.z() = pd_.robot_position_.z;
+    // pd_.initial_position_.x() = pd_.robot_position_.x;
+    // pd_.initial_position_.y() = pd_.robot_position_.y;
+    // pd_.initial_position_.z() = pd_.robot_position_.z;
+    pd_.initial_position_.x() = 0;
+    pd_.initial_position_.y() = 0;
+    pd_.initial_position_.z() = 0;
   }
   double roll, pitch, yaw;
   geometry_msgs::Quaternion geo_quat = state_estimation_msg->pose.pose.orientation;
@@ -326,10 +330,13 @@ void SensorCoveragePlanner3D::RegisteredScanCallback(const sensor_msgs::PointClo
 
     if (pd_.ugv2priority > 0)
     {
+      pd_.planning_env_->UpdateRobotPosition(pd_.robot2_position_);
       pd_.keypose_.pose.pose.position = pd_.robot2_position_;
       pd_.keypose_.pose.covariance[0] = keypose_count_++;
       pd_.cur_keypose_node_ind_ = pd_.keypose_graph_->AddKeyposeNode(pd_.keypose_, *(pd_.planning_env_));
     }
+
+    pd_.planning_env_->UpdateRobotPosition(pd_.robot_position_);
 
     pointcloud_downsizer_.Downsize(pd_.registered_scan_stack_->cloud_, pp_.kKeyposeCloudDwzFilterLeafSize,
                                    pp_.kKeyposeCloudDwzFilterLeafSize, pp_.kKeyposeCloudDwzFilterLeafSize);
@@ -383,23 +390,21 @@ void SensorCoveragePlanner3D::get_sub_pos(std::vector<int> vector)
 //Callback to set covered subspaces by other ugv to covered for this ugv
 void SensorCoveragePlanner3D::CoveredSubspacesCallback(const std_msgs::Int32MultiArray& covered_subspaces_msg)
 {
-  if (((ros::Time::now() - start_time_).toSec()) > 20)
-  {
     std::vector<int> test{};
     test = covered_subspaces_msg.data;
     coveredbyothers(test);
-  }
 }
 
 //Callback to set exploring subspaces by other ugv to exploring for this ugv
 void SensorCoveragePlanner3D::ExploringSubspacesCallback(const std_msgs::Int32MultiArray& exploring_subspaces_msg)
 {
-  if (((ros::Time::now() - start_time_).toSec()) > 20)
-  {
     std::vector<int> test{};
     test = exploring_subspaces_msg.data;
     exploringbyothers(test);
-  }
+    pd_.grid_world_->UpdateCellStatus(pd_.viewpoint_manager_);
+    pd_.grid_world_->UpdateCellKeyposeGraphNodes(pd_.keypose_graph_);
+
+    pd_.viewpoint_manager_->UpdateCandidateViewPointCellStatus(pd_.grid_world_);
 }
 
 //Callback to set priority of other ugv
@@ -466,9 +471,32 @@ void SensorCoveragePlanner3D::Publishpriority()
 {
   std_msgs::Int32 priority_msg;
   priority_msg.data = pd_.priority;
-  priority_pub_.publish(priority_msg);
+  if (!exploration_finished_)
+  {
+    priority_pub_.publish(priority_msg);
+  }
 }
 
+void SensorCoveragePlanner3D::Publishkeypose()
+{
+  pd_.keypose_graph_->GetNodePositions(pd_.pub_position_);
+  geometry_msgs::PoseArray pose_msg;
+  pose_msg.header.stamp = ros::Time::now();
+  pose_msg.header.frame_id = "map";
+  for (const auto& point : pd_.pub_position_) {
+    geometry_msgs::Pose msg;
+    msg.position.x = point.x();
+    msg.position.y = point.y();
+    msg.position.z = point.z();
+    Eigen::Quaterniond orientation(0, 0, 0, 0);  // Identity quaternion
+    msg.orientation.x = orientation.x();
+    msg.orientation.y = orientation.y();
+    msg.orientation.z = orientation.z();
+    msg.orientation.w = orientation.w();
+    pose_msg.poses.push_back(msg);
+  }
+  keypose_pub_.publish(pose_msg);
+}
 
 void SensorCoveragePlanner3D::TerrainMapCallback(const sensor_msgs::PointCloud2ConstPtr& terrain_map_msg)
 {
@@ -631,6 +659,20 @@ int SensorCoveragePlanner3D::UpdateViewPoints()
   pd_.viewpoint_manager_->UpdateViewPointVisited(pd_.visited_positions_);
   pd_.viewpoint_manager_->UpdateViewPointVisited(pd_.grid_world_);
 
+  Eigen::Vector3d robot2_current_position(pd_.robot2_position_.x, pd_.robot2_position_.y, pd_.robot2_position_.z);
+  if (pd_.ugv2priority > 0)
+  {
+    for (int i = 0; i < pd_.visited_positions_.size(); i++)
+    {
+      if ((robot2_current_position - pd_.visited_positions_[i]).norm() < 1 && (robot2_current_position != pd_.visited_positions_[i]))
+      {
+        pd_.visited_positions_.push_back(robot2_current_position);
+      }
+    }
+  }
+  pd_.viewpoint_manager_->UpdateViewPointVisited(pd_.visited_positions_);
+  pd_.viewpoint_manager_->UpdateViewPointVisited(pd_.grid_world_);
+
   // For visualization
   pd_.collision_cloud_->Publish();
   // pd_.collision_grid_cloud_->Publish();
@@ -669,6 +711,12 @@ void SensorCoveragePlanner3D::UpdateRobotViewPointCoverage()
     {
       pd_.robot_viewpoint_.UpdateCoverage<pcl::PointXYZI>(point);
     }
+    // if ((pd_.viewpoint_manager_->InFOVAndRange(
+    //         Eigen::Vector3d(point.x, point.y, point.z),
+    //         Eigen::Vector3d(pd_.robot2_position_.x, pd_.robot2_position_.y, pd_.robot2_position_.z))) && (pd_.ugv2priority > 0))
+    // {
+    //   pd_.robot_viewpoint_.UpdateCoverage<pcl::PointXYZI>(point);
+    // }
   }
 }
 
@@ -743,6 +791,18 @@ void SensorCoveragePlanner3D::UpdateGlobalRepresentation()
   geometry_msgs::Point closest_node_position = pd_.keypose_graph_->GetClosestNodePosition(pd_.robot_position_);
   pd_.grid_world_->SetCurKeyposeGraphNodeInd(closest_node_ind);
   pd_.grid_world_->SetCurKeyposeGraphNodePosition(closest_node_position);
+
+  // pd_.planning_env_->UpdateRobotPosition(pd_.robot2_position_);
+  // pd_.planning_env_->UpdateKeyposeCloud<PlannerCloudPointType>(pd_.keypose_cloud_->cloud_);
+  // if (pd_.ugv2priority > 0)
+  // {
+  //   int closest_node_ind_2 = pd_.keypose_graph_->GetClosestNodeInd(pd_.robot2_position_);
+  //   geometry_msgs::Point closest_node_position_2 = pd_.keypose_graph_->GetClosestNodePosition(pd_.robot2_position_);
+  //   pd_.grid_world_->SetCurKeyposeGraphNodeInd(closest_node_ind_2);
+  //   pd_.grid_world_->SetCurKeyposeGraphNodePosition(closest_node_position_2);
+  // }
+  // pd_.planning_env_->UpdateRobotPosition(pd_.robot_position_);
+
 
   pd_.grid_world_->UpdateRobotPosition(pd_.robot_position_);
   if (!pd_.grid_world_->HomeSet())
@@ -1301,6 +1361,10 @@ void SensorCoveragePlanner3D::PublishWaypoint()
     waypoint.point.y = dy + pd_.robot_position_.y;
     waypoint.point.z = pd_.lookahead_point_.z();
   }
+  if ((pd_.redflag != 0) && (pd_.priority <= pd_.ugv2priority) && (pd_.ugv2priority > 0) && (!exploration_finished_))
+  {
+    waypoint.point.y = waypoint.point.y - 2;
+  }
   if ((pd_.redflag != 0) && (pd_.priority >= pd_.ugv2priority) && (pd_.ugv2priority > 0) && (!exploration_finished_))
   {
     if (pd_.previous_points.size() < 2) 
@@ -1308,14 +1372,14 @@ void SensorCoveragePlanner3D::PublishWaypoint()
       ROS_ERROR("Not enough waypoints stored to retrace steps");
       return;
       waypoint.point.x = pd_.robot_position_.x;
-      waypoint.point.y = pd_.robot_position_.y;
+      waypoint.point.y = pd_.robot_position_.y + 2;
       waypoint.point.z = pd_.robot_position_.z;
     }
     else 
     {
       for (int i = pd_.previous_points.size() - 1; i >= 0; i--) {
         waypoint.point.x = pd_.previous_points[i].x;
-        waypoint.point.y = pd_.previous_points[i].y;
+        waypoint.point.y = pd_.previous_points[i].y + 2;
         waypoint.point.z = pd_.previous_points[i].z;
         misc_utils_ns::Publish<geometry_msgs::PointStamped>(waypoint_pub_, waypoint, kWorldFrameID);
         pd_.previous_points.pop_back();
@@ -1552,6 +1616,7 @@ void SensorCoveragePlanner3D::execute(const ros::TimerEvent&)
     {
       PrintExplorationStatus("Return home completed", false);
       stopped_ = true;
+      pd_.priority = 1000;
     }
 
     pd_.exploration_path_ = ConcatenateGlobalLocalPath(global_path, local_path);
@@ -1579,48 +1644,36 @@ void SensorCoveragePlanner3D::execute(const ros::TimerEvent&)
 
 void SensorCoveragePlanner3D::pub(const ros::TimerEvent&)
 {
+  if (exploration_finished_)
+  {
+    pd_.ugv2priority = 0;
+  }
   // sensor_msgs::PointCloud2 cloud_msg;
   // pcl::toROSMsg(*pd_.keypose_cloud_, cloud_msg);
   // cloud_msg.header.frame_id = "map";
   // point_cloud_pub.publish(cloud_msg);
   Publishpriority();
+  Publishkeypose();
   store_previous_point(pd_.robot_position_);
-  Eigen::Vector3d robot2_current_position(pd_.robot2_position_.x, pd_.robot2_position_.y, pd_.robot2_position_.z);
-  if (pd_.ugv2priority > 0)
-  {
-    for (int i = 0; i < pd_.visited_positions_.size(); i++)
-    {
-      if ((robot2_current_position - pd_.visited_positions_[i]).norm() < 1 && (robot2_current_position != pd_.visited_positions_[i]))
-      {
-        pd_.visited_positions_.push_back(robot2_current_position);
-      }
-    }
-  }
-  pd_.viewpoint_manager_->UpdateViewPointVisited(pd_.visited_positions_);
-  if (((ros::Time::now() - start_time_).toSec()) > 100)
-  {
-    Publishredflag();
-    PublishStoppedState();
-    PublishExplorationTime();
 
-    std::vector<int> myvector;
+  // if (((ros::Time::now() - start_time_).toSec()) > 5)
+  // {
+  Publishredflag();
+  PublishStoppedState();
+  PublishExplorationTime();
 
-    myvector = getexplore();
+  std::vector<int> myvector;
+  myvector = getexplore();
+  PublishExploringSubspaces(myvector);
 
-    PublishExploringSubspaces(myvector);
-
-    std::vector<int> mycovered;
-
-    mycovered = getcovered();
-
-    PublishCoveredSubspaces(mycovered);
-
-    std::vector<int> mynogo;
-    pd_.grid_world_->GetNogoCellIndices(mynogo);
-
-    ros::Time stamp;
-
-    stamp = ros::Time::now();
+  std::vector<int> mycovered;
+  mycovered = getcovered();
+  PublishCoveredSubspaces(mycovered);
+  
+  std::vector<int> mynogo;
+  pd_.grid_world_->GetNogoCellIndices(mynogo);
+  ros::Time stamp;
+  stamp = ros::Time::now();
 
     // if (!exploration_finished_)
     // {
@@ -1642,7 +1695,7 @@ void SensorCoveragePlanner3D::pub(const ros::TimerEvent&)
 
 
     // std::cout << "\n Total: " << n << "\n";
-  }
+  // }
 }
 
 
