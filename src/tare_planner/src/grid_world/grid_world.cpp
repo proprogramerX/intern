@@ -575,6 +575,21 @@ void GridWorld::SetCoveredByOthers(std::vector<int>& covered_cell_indices)
 }
 
 //added by Jerome
+void GridWorld::SetCoveredByOtherstoCovered(std::vector<int>& covered_cell_indices)
+{
+  covered_cell_indices.clear();
+  for (int i = 0; i < subspaces_->GetCellNumber(); i++)
+  {
+      if (subspaces_->GetCell(i).GetStatus() == CellStatus::COVERED_BY_OTHERS)
+      {
+        subspaces_->GetCell(i).SetStatus(CellStatus::COVERED);
+        covered_cell_indices.push_back(i);
+      }
+  }
+
+}
+
+//added by Jerome
 void GridWorld::SetExploringCells(std::vector<int>& exploring_cell_indices)
 {
   for (int i = 0; i < subspaces_->GetCellNumber(); i++)

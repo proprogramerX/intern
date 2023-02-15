@@ -14,17 +14,17 @@ pub_waypoint_topic_ : /way_point
 pub_momentum_activation_count_topic_ : momentum_activation_count
 
 kAutoStart : true
-kRushHome : true
+kRushHome : false
 kUseTerrainHeight : false
 kCheckTerrainCollision : true
 kExtendWayPoint : true
 kUseLineOfSightLookAheadPoint : true
-kNoExplorationReturnHome : true
+kNoExplorationReturnHome : false
 kExtendWayPointDistanceBig : 8.0
 kExtendWayPointDistanceSmall : 3.5
 kKeyposeCloudDwzFilterLeafSize : 0.2
-kRushHomeDist : 5
-kAtHomeDistThreshold : 0.5
+kRushHomeDist : 10
+kAtHomeDistThreshold : 1
 kTerrainCollisionThreshold : 0.5
 kLookAheadDistance : 8
 kUseMomentum : true 

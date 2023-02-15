@@ -328,13 +328,13 @@ void SensorCoveragePlanner3D::RegisteredScanCallback(const sensor_msgs::PointClo
     pd_.keypose_.pose.covariance[0] = keypose_count_++;
     pd_.cur_keypose_node_ind_ = pd_.keypose_graph_->AddKeyposeNode(pd_.keypose_, *(pd_.planning_env_));
 
-    if (pd_.ugv2priority > 0)
-    {
-      pd_.planning_env_->UpdateRobotPosition(pd_.robot2_position_);
-      pd_.keypose_.pose.pose.position = pd_.robot2_position_;
-      pd_.keypose_.pose.covariance[0] = keypose_count_++;
-      pd_.cur_keypose_node_ind_ = pd_.keypose_graph_->AddKeyposeNode(pd_.keypose_, *(pd_.planning_env_));
-    }
+    // if (pd_.ugv2priority > 0)
+    // {
+    //   pd_.planning_env_->UpdateRobotPosition(pd_.robot2_position_);
+    //   pd_.keypose_.pose.pose.position = pd_.robot2_position_;
+    //   pd_.keypose_.pose.covariance[0] = keypose_count_++;
+    //   pd_.cur_keypose_node_ind_ = pd_.keypose_graph_->AddKeyposeNode(pd_.keypose_, *(pd_.planning_env_));
+    // }
 
     pd_.planning_env_->UpdateRobotPosition(pd_.robot_position_);
 
@@ -391,8 +391,25 @@ void SensorCoveragePlanner3D::get_sub_pos(std::vector<int> vector)
 void SensorCoveragePlanner3D::CoveredSubspacesCallback(const std_msgs::Int32MultiArray& covered_subspaces_msg)
 {
     std::vector<int> test{};
+    std::vector<int> temp;
     test = covered_subspaces_msg.data;
-    coveredbyothers(test);
+    if (!pd_.tunnelflag)
+    {
+      coveredbyothers(test);
+      coveredbyothers(temp);
+    }
+    else if (((ros::Time::now() - tunnel_time).toSec()) < 100)    
+    {
+      pd_.grid_world_->SetCoveredByOtherstoCovered(temp);
+      for (auto it = temp.begin(); it != temp.end(); ++it)
+      {
+        std::cout << *it;
+      }
+    }
+    else
+    {
+      pd_.tunnelflag = false;
+    }
 }
 
 //Callback to set exploring subspaces by other ugv to exploring for this ugv
@@ -400,17 +417,18 @@ void SensorCoveragePlanner3D::ExploringSubspacesCallback(const std_msgs::Int32Mu
 {
     std::vector<int> test{};
     test = exploring_subspaces_msg.data;
-    exploringbyothers(test);
-    pd_.grid_world_->UpdateCellStatus(pd_.viewpoint_manager_);
-    pd_.grid_world_->UpdateCellKeyposeGraphNodes(pd_.keypose_graph_);
+    // exploringbyothers(test);
+    // pd_.grid_world_->UpdateCellStatus(pd_.viewpoint_manager_);
+    // pd_.grid_world_->UpdateCellKeyposeGraphNodes(pd_.keypose_graph_);
 
-    pd_.viewpoint_manager_->UpdateCandidateViewPointCellStatus(pd_.grid_world_);
+    // pd_.viewpoint_manager_->UpdateCandidateViewPointCellStatus(pd_.grid_world_);
 }
 
 //Callback to set priority of other ugv
 void SensorCoveragePlanner3D::prioritycallback(const std_msgs::Int32& priority_msg)
 {
   pd_.ugv2priority = priority_msg.data;
+  std::cout << (pd_.ugv2priority);
 }
 
 //Function to check if a point is within the radius of a sphere boundary 
@@ -447,6 +465,7 @@ void SensorCoveragePlanner3D::VehicleCollisionAvoidance(const exploration_path_n
   }
 }
 
+//Function to store previous points
 void SensorCoveragePlanner3D::store_previous_point(const geometry_msgs::Point& current_point) 
 {
   // Add the current point to the vector.
@@ -473,6 +492,11 @@ void SensorCoveragePlanner3D::Publishpriority()
   priority_msg.data = pd_.priority;
   if (!exploration_finished_)
   {
+    priority_pub_.publish(priority_msg);
+  }
+  else
+  {
+    priority_msg.data = 0;
     priority_pub_.publish(priority_msg);
   }
 }
@@ -1361,10 +1385,13 @@ void SensorCoveragePlanner3D::PublishWaypoint()
     waypoint.point.y = dy + pd_.robot_position_.y;
     waypoint.point.z = pd_.lookahead_point_.z();
   }
+  //added by Jerome
+  // Move towards left if lower priority
   if ((pd_.redflag != 0) && (pd_.priority <= pd_.ugv2priority) && (pd_.ugv2priority > 0) && (!exploration_finished_))
   {
     waypoint.point.y = waypoint.point.y - 2;
   }
+  // Move towards left if higher priority
   if ((pd_.redflag != 0) && (pd_.priority >= pd_.ugv2priority) && (pd_.ugv2priority > 0) && (!exploration_finished_))
   {
     if (pd_.previous_points.size() < 2) 
@@ -1604,12 +1631,22 @@ void SensorCoveragePlanner3D::execute(const ros::TimerEvent&)
     if (pd_.grid_world_->IsReturningHome() && pd_.local_coverage_planner_->IsLocalCoverageComplete() &&
         (ros::Time::now() - start_time_).toSec() > 5)
     {
-      if (!exploration_finished_)
+      //added by Jerome
+      if ((pd_.ugv2priority == 0) && pd_.local_coverage_planner_->IsLocalCoverageComplete())
+      {
+        exploration_finished_ = true;
+      }
+      else
+      {
+        pd_.tunnelflag = true;
+        pd_.local_coverage_planner_->SetLocalCoveragePlannerFalse();
+        tunnel_time = ros::Time::now();
+      }
+      if (!exploration_finished_ && pd_.tunnelflag == false)
       {
         PrintExplorationStatus("Exploration completed, returning home", false);
         std::cout << ((ros::Time::now() - start_time_).toSec());
       }
-      exploration_finished_ = true;
     }
 
     if (exploration_finished_ && at_home_ && !stopped_)
@@ -1644,10 +1681,6 @@ void SensorCoveragePlanner3D::execute(const ros::TimerEvent&)
 
 void SensorCoveragePlanner3D::pub(const ros::TimerEvent&)
 {
-  if (exploration_finished_)
-  {
-    pd_.ugv2priority = 0;
-  }
   // sensor_msgs::PointCloud2 cloud_msg;
   // pcl::toROSMsg(*pd_.keypose_cloud_, cloud_msg);
   // cloud_msg.header.frame_id = "map";

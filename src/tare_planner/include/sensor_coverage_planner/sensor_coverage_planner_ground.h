@@ -134,15 +134,16 @@ struct PlannerData
   std::unique_ptr<pointcloud_utils_ns::PCLCloud<pcl::PointXYZI>> point_cloud_manager_neighbor_cloud_;
   std::unique_ptr<pointcloud_utils_ns::PCLCloud<pcl::PointXYZI>> reordered_global_subspace_cloud_;
 
-
+//added by Jerome
   std::vector<int> explore_sub;
   std::vector<int> covered_sub;
 
   // Define a queue to store the previous points of the robot.
   std::vector<geometry_msgs::Point> previous_points;
 
+  bool tunnelflag = false;
   int redflag = 0;
-  int priority = 1;
+  int priority = 2;
   int ugv2priority;
 
   std::vector<Eigen::Vector3d> pub_position_ ;
@@ -187,6 +188,9 @@ public:
   void execute(const ros::TimerEvent&);
   void pub(const ros::TimerEvent&);
   ~SensorCoveragePlanner3D() = default;
+  //added by Jerome
+  ros::Time tunnel_time;
+
 
 private:
   bool keypose_cloud_update_;
@@ -219,6 +223,7 @@ private:
   int direction_no_change_count_;
   int momentum_activation_count_;
 
+//added by Jerome
   ros::Time start_time_;
   ros::Time global_direction_switch_time_;
 
@@ -326,7 +331,6 @@ private:
   void Publishredflag();
   void Publishpriority();
   void store_previous_point(const geometry_msgs::Point& current_point);
-
   void Publishkeypose();
 
 

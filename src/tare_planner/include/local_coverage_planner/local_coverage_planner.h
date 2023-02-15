@@ -75,6 +75,11 @@ public:
   {
     return local_coverage_complete_;
   }
+  //added by Jerome
+  void SetLocalCoveragePlannerFalse()
+  {
+    local_coverage_complete_ = false;
+  }
 
   // Visualization
   void GetSelectedViewPointVisCloud(pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud);
@@ -117,6 +122,7 @@ private:
   bool lookahead_point_update_;
   bool use_frontier_;
   bool local_coverage_complete_;
+
 
   // Viewpoint indices
   int robot_viewpoint_ind_;

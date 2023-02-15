@@ -307,12 +307,15 @@ public:
                               std::vector<int>& neighbor_indices);
   void GetNeighborCellIndices(const geometry_msgs::Point& position, const Eigen::Vector3i& neighbor_range,
                               std::vector<int>& neighbor_indices);
+  //added by Jerome
   void GetExploringCellIndices(std::vector<int>& exploring_cell_indices);
   void GetCoveredCellIndices(std::vector<int>& covered_cell_indices);
   void SetCoveredByOthers(std::vector<int>& covered_cell_indices);
+  void SetCoveredByOtherstoCovered(std::vector<int>& covered_cell_indices);
   void SetExploringCells(std::vector<int>& exploring_cell_indices);
   void SetNogo(const geometry_msgs::Point& robot_position);
   void GetNogoCellIndices(std::vector<int>& nogo_cell_indices);
+
   CellStatus GetCellStatus(int cell_ind);
   void SetCellStatus(int cell_ind, CellStatus status);
   geometry_msgs::Point GetCellPosition(int cell_ind);
