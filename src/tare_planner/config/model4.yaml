@@ -30,6 +30,7 @@ kLookAheadDistance : 8
 kUseMomentum : true 
 kDirectionChangeCounterThr : 6
 kDirectionNoChangeCounterThr : 5
+trigger_dist: 2
 
 # PlanningEnv
 kUseFrontier : true

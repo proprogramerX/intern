@@ -109,6 +109,7 @@ struct PlannerParameters
   // Int
   int kDirectionChangeCounterThr;
   int kDirectionNoChangeCounterThr;
+  int trigger_dist;
 
   bool ReadParameters(ros::NodeHandle& nh);
 };
@@ -143,7 +144,7 @@ struct PlannerData
 
   bool tunnelflag = false;
   int redflag = 0;
-  int priority = 2;
+  int priority = 1;
   int ugv2priority;
 
   std::vector<Eigen::Vector3d> pub_position_ ;

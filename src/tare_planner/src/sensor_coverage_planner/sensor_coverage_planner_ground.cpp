@@ -61,6 +61,7 @@ bool PlannerParameters::ReadParameters(ros::NodeHandle& nh)
   // Int
   kDirectionChangeCounterThr = misc_utils_ns::getParam<int>(nh, "kDirectionChangeCounterThr", 4);
   kDirectionNoChangeCounterThr = misc_utils_ns::getParam<int>(nh, "kDirectionNoChangeCounterThr", 5);
+  trigger_dist = misc_utils_ns::getParam<int>(nh, "trigger_dist", 3);
 
   return true;
 }
@@ -458,7 +459,7 @@ void SensorCoveragePlanner3D::VehicleCollisionAvoidance(const exploration_path_n
   // }
   for (int i = 0; i < local_path.nodes_.size(); i++)
   {
-    if (isInsideCircularBoundary(robot2pos.x,robot2pos.y,robot2pos.z,5.00,local_path.nodes_[i].position_.x(),local_path.nodes_[i].position_.y(),local_path.nodes_[i].position_.z()))
+    if (isInsideCircularBoundary(robot2pos.x,robot2pos.y,robot2pos.z,pp_.trigger_dist,local_path.nodes_[i].position_.x(),local_path.nodes_[i].position_.y(),local_path.nodes_[i].position_.z()))
     {
       pd_.redflag = 1;
     }
